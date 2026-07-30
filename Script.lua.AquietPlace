@@ -13,16 +13,16 @@ local Camera = Workspace.CurrentCamera
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "A Quiet Place: Deadzone Hub",
-    LoadingTitle = "Loading System...",
+    Name = "Flux Hub | Deadzone Engine",
+    LoadingTitle = "Initializing Flux Hub...",
     ConfigurationSaving = { Enabled = false },
     KeySystem = false
 })
 
 -- Welcome Notification & Credits
 Rayfield:Notify({
-    Title = "Welcome!",
-    Content = "Credit to Aziz | Script Loaded Successfully!",
+    Title = "Flux Hub Loaded",
+    Content = "Welcome, Kazuto! Script loaded successfully.",
     Duration = 6.5,
     Image = 4483362458
 })
@@ -61,7 +61,7 @@ local FeedbackText = ""
 ---------------------------------------------------------
 
 local FOVGui = Instance.new("ScreenGui")
-FOVGui.Name = "AzizFOVBoxOverlay"
+FOVGui.Name = "FluxHubFOVBoxOverlay"
 FOVGui.ResetOnSpawn = false
 FOVGui.DisplayOrder = 999
 
@@ -82,7 +82,7 @@ FOVLabel.Name = "FOVLabel"
 FOVLabel.Size = UDim2.new(1, 0, 0, 18)
 FOVLabel.Position = UDim2.new(0, 0, 0, -20)
 FOVLabel.BackgroundTransparency = 1
-FOVLabel.Text = "[ AIMBOT TARGET ZONE ]"
+FOVLabel.Text = "[ FLUX AIMBOT ZONE ]"
 FOVLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
 FOVLabel.TextSize = 11
 FOVLabel.Font = Enum.Font.SourceSansBold
@@ -217,8 +217,8 @@ MovementTab:CreateToggle({
     Callback = function(Value) Toggles.InstantInteract = Value end
 })
 
--- 4. KEYBINDS TAB (ONLY SINGLE AIMBOT KEYBIND REMAINS)
-KeybindsTab:CreateSection("Master Aimbot Keybind")
+-- 4. KEYBINDS TAB
+KeybindsTab:CreateSection("Master Aimbot Hotkey")
 
 KeybindsTab:CreateKeybind({
     Name = "Toggle All Aimbots",
@@ -230,7 +230,7 @@ KeybindsTab:CreateKeybind({
         Toggles.PlayerAimbot = Toggles.MasterAimbotToggle
 
         Rayfield:Notify({
-            Title = "Aimbot Keybind",
+            Title = "Flux Hub Aimbot",
             Content = "All Aimbots are now " .. (Toggles.MasterAimbotToggle and "ENABLED" or "DISABLED"),
             Duration = 2
         })
@@ -238,7 +238,7 @@ KeybindsTab:CreateKeybind({
 })
 
 -- 5. FEEDBACK TAB
-FeedbackTab:CreateSection("Send Feedback to Aziz")
+FeedbackTab:CreateSection("Send Feedback to Kazuto")
 
 FeedbackTab:CreateInput({
     Name = "Feedback / Bug Report",
@@ -263,7 +263,7 @@ FeedbackTab:CreateButton({
 
         local payload = HttpService:JSONEncode({
             ["embeds"] = {{
-                ["title"] = "📩 New Hub Feedback!",
+                ["title"] = "⚡ New Flux Hub Feedback!",
                 ["color"] = 65280,
                 ["fields"] = {
                     { ["name"] = "User", ["value"] = LocalPlayer.Name .. " (" .. tostring(LocalPlayer.UserId) .. ")", ["inline"] = true },
@@ -287,7 +287,7 @@ FeedbackTab:CreateButton({
             if success then
                 Rayfield:Notify({
                     Title = "Success!",
-                    Content = "Feedback sent directly to Aziz!",
+                    Content = "Feedback sent directly to Kazuto!",
                     Duration = 4
                 })
             else
@@ -514,7 +514,7 @@ RunService.RenderStepped:Connect(function()
         LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = Settings.WalkSpeed
     end
 
-    -- UNIFIED AIMBOT ENGINE
+    -- AIMBOT ENGINE
     if Toggles.MonsterAimbot or Toggles.PlayerAimbot then
         local closestPart = nil
         local shortestDistance = Settings.FOVRadius
