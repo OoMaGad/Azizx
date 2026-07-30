@@ -2,7 +2,6 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
@@ -11,10 +10,26 @@ local Camera = Workspace.CurrentCamera
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "Universal Utility Hub",
+    Name = "A Quiet Place: Deadzone Hub",
     LoadingTitle = "Loading System...",
     ConfigurationSaving = { Enabled = false },
     KeySystem = false
+})
+
+-- Welcome Notification & Credits
+Rayfield:Notify({
+    Title = "Welcome!",
+    Content = "Credit to Aziz | Script Loaded Successfully!",
+    Duration = 6.5,
+    Image = 4483362458,
+    Actions = {
+        Ignore = {
+            Name = "Okay",
+            Callback = function()
+                print("Welcome notification acknowledged.")
+            end
+        },
+    },
 })
 
 -- State Variables
@@ -22,158 +37,278 @@ local Toggles = {
     PlayerESP = false,
     MonsterESP = false,
     ItemESP = false,
-    WeaponESP = false,
+    -- Specific Item Category Toggles
+    MedicalESP = true,
+    WeaponESP = true,
+    ObjectiveESP = true,
+    NoiseESP = true,
     Aimbot = false,
     FOVVisible = false,
-    WalkSpeed = false,
-    JumpPower = false
+    WalkSpeed = false
 }
 
 local Settings = {
-    FOVRadius = 150,
-    AimbotKey = Enum.UserInputType.MouseButton2,
-    WalkSpeed = 50,
-    JumpPower = 100,
-    ItemFolder = "Items"
+    FOVRadius = 200,
+    WalkSpeed = 30
 }
 
--- Rayfield UI Setup
-local MainTab = Window:CreateTab("Main", 4483362458)
+-- Caches
+local CachedMonsters = {}
+local CachedItems = {}
 
-MainTab:CreateToggle({
-    Name = "Player ESP",
-    CurrentValue = false,
-    Callback = function(Value) Toggles.PlayerESP = Value end
-})
+---------------------------------------------------------
+-- UI TABS
+---------------------------------------------------------
 
-MainTab:CreateToggle({
-    Name = "Monster ESP",
-    CurrentValue = false,
-    Callback = function(Value) Toggles.MonsterESP = Value end
-})
+local CombatTab = Window:CreateTab("Combat", 4483362458)
+local ESPTab = Window:CreateTab("ESP", 4483362458)
+local MovementTab = Window:CreateTab("Movement", 4483362458)
 
-MainTab:CreateToggle({
-    Name = "Item ESP",
-    CurrentValue = false,
-    Callback = function(Value) Toggles.ItemESP = Value end
-})
-
-MainTab:CreateToggle({
-    Name = "Weapon ESP",
-    CurrentValue = false,
-    Callback = function(Value) Toggles.WeaponESP = Value end
-})
-
-MainTab:CreateToggle({
-    Name = "Aimbot",
+-- 1. COMBAT
+CombatTab:CreateToggle({
+    Name = "Monster Aimbot",
     CurrentValue = false,
     Callback = function(Value) Toggles.Aimbot = Value end
 })
 
-MainTab:CreateToggle({
+CombatTab:CreateToggle({
     Name = "Show FOV Circle",
     CurrentValue = false,
     Callback = function(Value) Toggles.FOVVisible = Value end
 })
 
-MainTab:CreateSlider({
-    Name = "FOV Radius",
+CombatTab:CreateSlider({
+    Name = "Aimbot FOV Radius",
     Range = {50, 500},
     Increment = 10,
-    CurrentValue = 150,
+    CurrentValue = 200,
     Callback = function(Value) Settings.FOVRadius = Value end
 })
 
-MainTab:CreateToggle({
-    Name = "Enable WalkSpeed",
+-- 2. ESP
+ESPTab:CreateSection("Entities")
+
+ESPTab:CreateToggle({
+    Name = "Player ESP (Green)",
+    CurrentValue = false,
+    Callback = function(Value) Toggles.PlayerESP = Value end
+})
+
+ESPTab:CreateToggle({
+    Name = "Monster ESP (Red)",
+    CurrentValue = false,
+    Callback = function(Value) 
+        Toggles.MonsterESP = Value 
+        if not Value then
+            for obj, _ in pairs(CachedMonsters) do removeESP(obj, "Monster") end
+        end
+    end
+})
+
+ESPTab:CreateSection("Loot & Items")
+
+ESPTab:CreateToggle({
+    Name = "Item / Loot ESP (Yellow)",
+    CurrentValue = false,
+    Callback = function(Value) 
+        Toggles.ItemESP = Value 
+        if not Value then
+            for obj, _ in pairs(CachedItems) do removeESP(obj, "Item") end
+        end
+    end
+})
+
+ESPTab:CreateToggle({
+    Name = "  └ Medical (Meds/Bandages)",
+    CurrentValue = true,
+    Callback = function(Value) Toggles.MedicalESP = Value end
+})
+
+ESPTab:CreateToggle({
+    Name = "  └ Weapons & Ammo",
+    CurrentValue = true,
+    Callback = function(Value) Toggles.WeaponESP = Value end
+})
+
+ESPTab:CreateToggle({
+    Name = "  └ Objectives (Fuses/Keys/Gears)",
+    CurrentValue = true,
+    Callback = function(Value) Toggles.ObjectiveESP = Value end
+})
+
+ESPTab:CreateToggle({
+    Name = "  └ Noise & Distractions",
+    CurrentValue = true,
+    Callback = function(Value) Toggles.NoiseESP = Value end
+})
+
+-- 3. MOVEMENT
+MovementTab:CreateToggle({
+    Name = "Speed Hack",
     CurrentValue = false,
     Callback = function(Value) Toggles.WalkSpeed = Value end
 })
 
-MainTab:CreateSlider({
+MovementTab:CreateSlider({
     Name = "WalkSpeed",
-    Range = {16, 200},
+    Range = {16, 100},
     Increment = 1,
-    CurrentValue = 50,
+    CurrentValue = 30,
     Callback = function(Value) Settings.WalkSpeed = Value end
 })
 
-MainTab:CreateToggle({
-    Name = "Enable JumpPower",
-    CurrentValue = false,
-    Callback = function(Value) Toggles.JumpPower = Value end
-})
-
-MainTab:CreateSlider({
-    Name = "JumpPower",
-    Range = {50, 300},
-    Increment = 5,
-    CurrentValue = 100,
-    Callback = function(Value) Settings.JumpPower = Value end
-})
-
 ---------------------------------------------------------
--- FUNCTIONALITY IMPLEMENTATION
+-- CORE FUNCTIONS
 ---------------------------------------------------------
 
--- 1. FOV Circle Drawing
 local FOVCircle = Drawing.new("Circle")
-FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+FOVCircle.Color = Color3.fromRGB(255, 0, 0)
 FOVCircle.Thickness = 1.5
 FOVCircle.NumSides = 64
 FOVCircle.Filled = false
 FOVCircle.Transparency = 1
 
--- 2. Highlight ESP Helper
-local function applyHighlight(model, color, name)
-    if not model or not model:IsA("Model") and not model:IsA("BasePart") then return end
-    local existing = model:FindFirstChild(name .. "_ESP")
-    if not existing then
-        local hl = Instance.new("Highlight")
-        hl.Name = name .. "_ESP"
+function applyESP(model, color, displayName, tagType)
+    if not model or not model.Parent then return end
+    
+    local hlName = tagType .. "_ESP"
+    local tagName = tagType .. "_Tag"
+
+    local hl = model:FindFirstChild(hlName)
+    if not hl then
+        hl = Instance.new("Highlight")
+        hl.Name = hlName
         hl.FillColor = color
-        hl.FillTransparency = 0.5
+        hl.FillTransparency = 0.4
         hl.OutlineColor = Color3.fromRGB(255, 255, 255)
         hl.OutlineTransparency = 0
         hl.Parent = model
     end
-end
 
-local function removeHighlight(model, name)
-    if not model then return end
-    local existing = model:FindFirstChild(name .. "_ESP")
-    if existing then
-        existing:Destroy()
+    local targetPart = model:FindFirstChild("Head") 
+        or model:FindFirstChild("HumanoidRootPart") 
+        or model:FindFirstChild("PrimaryPart")
+        or model:FindFirstChild("Handle") 
+        or (model:IsA("BasePart") and model)
+        or model:FindFirstChildOfClass("BasePart")
+
+    if not targetPart then return end
+
+    local bb = model:FindFirstChild(tagName)
+    if not bb then
+        bb = Instance.new("BillboardGui")
+        bb.Name = tagName
+        bb.Adornee = targetPart
+        bb.Size = UDim2.new(0, 150, 0, 30)
+        bb.StudsOffset = Vector3.new(0, 2.5, 0)
+        bb.AlwaysOnTop = true
+        
+        local label = Instance.new("TextLabel")
+        label.Name = "Text"
+        label.Parent = bb
+        label.BackgroundTransparency = 1
+        label.Size = UDim2.new(1, 0, 1, 0)
+        label.TextColor3 = color
+        label.TextStrokeTransparency = 0
+        label.TextSize = 13
+        label.Font = Enum.Font.SourceSansBold
+        
+        bb.Parent = model
+    end
+
+    if bb and bb:FindFirstChild("Text") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local dist = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - targetPart.Position).Magnitude)
+        bb.Text.Text = displayName .. " [" .. tostring(dist) .. "m]"
     end
 end
 
--- 3. Target Finder for Aimbot
-local function getClosestTarget()
-    local closestTarget = nil
-    local shortestDistance = Settings.FOVRadius
-    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+function removeESP(model, tagType)
+    if not model then return end
+    local hl = model:FindFirstChild(tagType .. "_ESP")
+    if hl then hl:Destroy() end
+    
+    local bb = model:FindFirstChild(tagType .. "_Tag")
+    if bb then bb:Destroy() end
+end
 
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
-            local head = player.Character.Head
-            local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
-            
-            if onScreen then
-                local mouseDist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                if mouseDist < shortestDistance then
-                    shortestDistance = mouseDist
-                    closestTarget = head
+-- Monster Check
+local function isMonster(obj)
+    if not obj:IsA("Model") or Players:GetPlayerFromCharacter(obj) then return false end
+    local nameLower = obj.Name:lower()
+    if nameLower:find("monster") or nameLower:find("creature") or nameLower:find("angel") or nameLower:find("alien") or nameLower:find("death") or nameLower:find("beast") or obj:FindFirstChildOfClass("Humanoid") then
+        return true
+    end
+    return false
+end
+
+-- Filtered Item Checker
+local function getFilteredItem(obj)
+    if Players:GetPlayerFromCharacter(obj) or isMonster(obj) then return false, nil end
+
+    local nameLower = obj.Name:lower()
+    local promptText = ""
+    local prompt = obj:FindFirstChildOfClass("ProximityPrompt")
+    if prompt then
+        promptText = (prompt.ObjectText .. " " .. prompt.ActionText):lower()
+    end
+
+    local checkStr = nameLower .. " " .. promptText
+
+    -- Medical
+    if Toggles.MedicalESP and (checkStr:find("med") or checkStr:find("bandage") or checkStr:find("health")) then
+        return true, "Medical"
+    end
+
+    -- Weapons / Ammo
+    if Toggles.WeaponESP and (checkStr:find("gun") or checkStr:find("ammo") or checkStr:find("shotgun") or checkStr:find("rifle") or checkStr:find("pistol") or checkStr:find("weapon") or obj:IsA("Tool")) then
+        return true, obj.Name
+    end
+
+    -- Objectives
+    if Toggles.ObjectiveESP and (checkStr:find("fuse") or checkStr:find("key") or checkStr:find("card") or checkStr:find("battery") or checkStr:find("part") or checkStr:find("gear")) then
+        return true, obj.Name
+    end
+
+    -- Noise / Distractions
+    if Toggles.NoiseESP and (checkStr:find("radio") or checkStr:find("flare") or checkStr:find("noise") or checkStr:find("bottle") or checkStr:find("can")) then
+        return true, obj.Name
+    end
+
+    return false, nil
+end
+
+---------------------------------------------------------
+-- BACKGROUND SCANNER (Runs every 1.5 seconds)
+---------------------------------------------------------
+
+task.spawn(function()
+    while task.wait(1.5) do
+        if Toggles.MonsterESP or Toggles.ItemESP or Toggles.Aimbot then
+            local tempMonsters = {}
+            local tempItems = {}
+
+            for _, obj in ipairs(Workspace:GetDescendants()) do
+                if Toggles.MonsterESP or Toggles.Aimbot then
+                    if isMonster(obj) then tempMonsters[obj] = true end
+                end
+
+                if Toggles.ItemESP then
+                    local isMatch, label = getFilteredItem(obj)
+                    if isMatch then tempItems[obj] = label end
                 end
             end
+
+            CachedMonsters = tempMonsters
+            CachedItems = tempItems
         end
     end
+end)
 
-    return closestTarget
-end
+---------------------------------------------------------
+-- RENDER LOOP
+---------------------------------------------------------
 
--- 4. Main Update Loop (Runs every frame)
 RunService.RenderStepped:Connect(function()
-    -- FOV Circle Position
     FOVCircle.Visible = Toggles.FOVVisible
     FOVCircle.Radius = Settings.FOVRadius
     FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
@@ -182,51 +317,62 @@ RunService.RenderStepped:Connect(function()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             if Toggles.PlayerESP then
-                applyHighlight(player.Character, Color3.fromRGB(0, 255, 0), "Player")
+                applyESP(player.Character, Color3.fromRGB(0, 255, 0), player.Name, "Player")
             else
-                removeHighlight(player.Character, "Player")
+                removeESP(player.Character, "Player")
             end
         end
     end
 
-    -- Monster / Item ESP Scanning in Workspace
-    for _, obj in ipairs(Workspace:GetChildren()) do
-        -- Monster Detection
-        if obj:FindFirstChildOfClass("Humanoid") and not Players:GetPlayerFromCharacter(obj) then
-            if Toggles.MonsterESP then
-                applyHighlight(obj, Color3.fromRGB(255, 0, 0), "Monster")
-            else
-                removeHighlight(obj, "Monster")
-            end
-        end
-
-        -- Item / Weapon ESP Detection
-        if obj:IsA("Tool") or obj:IsA("Model") and (obj:FindFirstChild("Handle") or obj:FindFirstChild("TouchInterest")) then
-            if Toggles.ItemESP or Toggles.WeaponESP then
-                applyHighlight(obj, Color3.fromRGB(255, 255, 0), "Item")
-            else
-                removeHighlight(obj, "Item")
+    -- Monster ESP
+    if Toggles.MonsterESP then
+        for monster, _ in pairs(CachedMonsters) do
+            if monster and monster.Parent then
+                applyESP(monster, Color3.fromRGB(255, 0, 0), "Monster (" .. monster.Name .. ")", "Monster")
             end
         end
     end
 
-    -- Character Speed & Jump Modification
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-        local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if Toggles.WalkSpeed then
-            humanoid.WalkSpeed = Settings.WalkSpeed
-        end
-        if Toggles.JumpPower then
-            humanoid.UseJumpPower = true
-            humanoid.JumpPower = Settings.JumpPower
+    -- Item ESP
+    if Toggles.ItemESP then
+        for item, labelName in pairs(CachedItems) do
+            if item and item.Parent then
+                applyESP(item, Color3.fromRGB(255, 255, 0), labelName, "Item")
+            else
+                removeESP(item, "Item")
+            end
         end
     end
 
-    -- Camera Aimbot Locking
+    -- Speed Hack
+    if Toggles.WalkSpeed and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = Settings.WalkSpeed
+    end
+
+    -- Monster Aimbot
     if Toggles.Aimbot then
-        local targetHead = getClosestTarget()
-        if targetHead then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
+        local closestPart = nil
+        local shortestDistance = Settings.FOVRadius
+        local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
+        for monster, _ in pairs(CachedMonsters) do
+            if monster and monster.Parent then
+                local targetPart = monster:FindFirstChild("Head") or monster:FindFirstChild("HumanoidRootPart") or monster:FindFirstChildOfClass("BasePart")
+                if targetPart then
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                    if onScreen then
+                        local mouseDist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                        if mouseDist < shortestDistance then
+                            shortestDistance = mouseDist
+                            closestPart = targetPart
+                        end
+                    end
+                end
+            end
+        end
+
+        if closestPart then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestPart.Position)
         end
     end
 end)
