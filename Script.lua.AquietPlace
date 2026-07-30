@@ -1,224 +1,567 @@
 -- Services
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local VirtualUser = game:GetService("VirtualUser")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
-local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
 
--- Load Rayfield UI (Stable & fully working execution on mobile & PC)
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+
+-- Load Rayfield UI
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "A Quiet Place | Survival Hub",
-    LoadingTitle = "Initializing Stealth Modules...",
-    LoadingSubtitle = "By Kazuto",
+    Name = "A Quiet Place | Kazu hub",
+    LoadingTitle = "Loading System...",
     ConfigurationSaving = { Enabled = false },
     KeySystem = false
 })
 
+-- Welcome Notification & Credits
 Rayfield:Notify({
-    Title = "Hub Loaded",
-    Content = "Welcome back, Kazuto! A Quiet Place survival hub active.",
-    Duration = 5,
+    Title = "Welcome!",
+    Content = "Credit to Kazu | Script Loaded Successfully!",
+    Duration = 6.5,
     Image = 4483362458
 })
 
--- State Configuration for A Quiet Place
-local Config = {
-    AntiAFK = true,
-    StealthMode = false,
-    WalkSpeed = 16,
-    Fullbright = false,
-    MonsterESP = false,
+-- State Variables
+local Toggles = {
     PlayerESP = false,
-    AutoLoot = false,
-    SafeZoneTeleport = false
+    MonsterESP = false,
+    ItemESP = false,
+    MedicalESP = true,
+    WeaponESP = true,
+    ObjectiveESP = true,
+    NoiseESP = true,
+    FoodESP = true,
+    MonsterAimbot = false,
+    PlayerAimbot = false,
+    MasterAimbotToggle = false,
+    FOVVisible = false,
+    WalkSpeed = false,
+    InstantInteract = true
 }
 
----------------------------------------------------------
--- TABS SETUP
----------------------------------------------------------
-local SurvivalTab = Window:CreateTab("Survival & Stealth", 4483362458)
-local VisualsTab = Window:CreateTab("Visuals & ESP", 4483362458)
-local UtilityTab = Window:CreateTab("Utility & AFK", 4483362458)
+local Settings = {
+    FOVRadius = 200,
+    WalkSpeed = 30,
+    DiscordWebhook = "https://discord.com/api/webhooks/1532342380722782349/sOcdaPAqhYZF_xVwWXm8gbq1b11w79_LqHZCLFpnaM_-4LqusulVA5kQENJX92g57Va1"
+}
+
+-- Caches
+local CachedMonsters = {}
+local CachedItems = {}
+local FeedbackText = ""
 
 ---------------------------------------------------------
--- 1. SURVIVAL & STEALTH TAB
+-- UI BASED FOV BOX OVERLAY
 ---------------------------------------------------------
-SurvivalTab:CreateSection("Movement & Stealth")
 
-SurvivalTab:CreateToggle({
-    Name = "Stealth Mode (Mute Footsteps & Noise)",
+local FOVGui = Instance.new("ScreenGui")
+FOVGui.Name = "KazuFOVBoxOverlay"
+FOVGui.ResetOnSpawn = false
+FOVGui.DisplayOrder = 999
+
+local ParentHost = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or LocalPlayer:WaitForChild("PlayerGui")
+FOVGui.Parent = ParentHost
+
+local FOVBox = Instance.new("Frame")
+FOVBox.Name = "FOVBox"
+FOVBox.AnchorPoint = Vector2.new(0.5, 0.5)
+FOVBox.BackgroundTransparency = 1
+FOVBox.BorderColor3 = Color3.fromRGB(0, 255, 255)
+FOVBox.BorderSizePixel = 2
+FOVBox.Visible = false
+FOVBox.Parent = FOVGui
+
+local FOVLabel = Instance.new("TextLabel")
+FOVLabel.Name = "FOVLabel"
+FOVLabel.Size = UDim2.new(1, 0, 0, 18)
+FOVLabel.Position = UDim2.new(0, 0, 0, -20)
+FOVLabel.BackgroundTransparency = 1
+FOVLabel.Text = "[ AIMBOT TARGET ZONE ]"
+FOVLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
+FOVLabel.TextSize = 11
+FOVLabel.Font = Enum.Font.SourceSansBold
+FOVLabel.Parent = FOVBox
+
+---------------------------------------------------------
+-- UI TABS (Vertical Sidebar Style Inspired)
+---------------------------------------------------------
+
+local CombatTab = Window:CreateTab("⚔️ Combat", 4483362458)
+local ESPTab = Window:CreateTab("👁️ ESP", 4483362458)
+local MovementTab = Window:CreateTab("⚡ Movement", 4483362458)
+local KeybindsTab = Window:CreateTab("⌨️ Keybinds", 4483362458)
+local FeedbackTab = Window:CreateTab("💬 Feedback", 4483362458)
+
+-- 1. COMBAT
+CombatTab:CreateSection("Aimbot Targets")
+
+CombatTab:CreateToggle({
+    Name = "Monster Aimbot",
     CurrentValue = false,
-    Callback = function(v)
-        Config.StealthMode = v
-        Rayfield:Notify({Title = "Stealth", Content = "Stealth Status: " .. tostring(v), Duration = 2})
-    end
+    Callback = function(Value) Toggles.MonsterAimbot = Value end
 })
 
-SurvivalTab:CreateSlider({
-    Name = "WalkSpeed Modifier",
-    Range = {10, 100},
-    Increment = 1,
-    Suffix = "Speed",
-    CurrentValue = 16,
-    Flag = "SliderWS",
-    Callback = function(v)
-        Config.WalkSpeed = v
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            LocalPlayer.Character.Humanoid.WalkSpeed = v
+CombatTab:CreateToggle({
+    Name = "Player Aimbot",
+    CurrentValue = false,
+    Callback = function(Value) Toggles.PlayerAimbot = Value end
+})
+
+CombatTab:CreateSection("Aimbot Settings")
+
+CombatTab:CreateToggle({
+    Name = "Show Target Zone Box",
+    CurrentValue = false,
+    Callback = function(Value) Toggles.FOVVisible = Value end
+})
+
+CombatTab:CreateSlider({
+    Name = "Aimbot FOV Size",
+    Range = {50, 500},
+    Increment = 10,
+    CurrentValue = 200,
+    Callback = function(Value) Settings.FOVRadius = Value end
+})
+
+-- 2. ESP
+ESPTab:CreateSection("Entities")
+
+ESPTab:CreateToggle({
+    Name = "Player ESP (Green)",
+    CurrentValue = false,
+    Callback = function(Value) Toggles.PlayerESP = Value end
+})
+
+ESPTab:CreateToggle({
+    Name = "Monster ESP (Red)",
+    CurrentValue = false,
+    Callback = function(Value) 
+        Toggles.MonsterESP = Value 
+        if not Value then
+            for obj, _ in pairs(CachedMonsters) do removeESP(obj, "Monster") end
         end
     end
 })
 
-SurvivalTab:CreateToggle({
-    Name = "Auto-Loot Nearby Items / Supplies",
-    CurrentValue = false,
-    Callback = function(v)
-        Config.AutoLoot = v
-    end
-})
+ESPTab:CreateSection("Loot & Items")
 
----------------------------------------------------------
--- 2. VISUALS & ESP TAB
----------------------------------------------------------
-VisualsTab:CreateSection("Lighting & Tracking")
-
-VisualsTab:CreateToggle({
-    Name = "Fullbright (See in Dark Areas)",
+ESPTab:CreateToggle({
+    Name = "Item / Loot ESP (Yellow)",
     CurrentValue = false,
-    Callback = function(v)
-        Config.Fullbright = v
-        if not v then
-            game:GetService("Lighting").Brightness = 1
-            game:GetService("Lighting").ClockTime = 0
-            game:GetService("Lighting").FogEnd = 1000
-            game:GetService("Lighting").GlobalShadows = true
+    Callback = function(Value) 
+        Toggles.ItemESP = Value 
+        if not Value then
+            for obj, _ in pairs(CachedItems) do removeESP(obj, "Item") end
         end
     end
 })
 
-VisualsTab:CreateToggle({
-    Name = "Monster ESP (Highlight Creatures)",
-    CurrentValue = false,
-    Callback = function(v)
-        Config.MonsterESP = v
-    end
-})
-
-VisualsTab:CreateToggle({
-    Name = "Player ESP",
-    CurrentValue = false,
-    Callback = function(v)
-        Config.PlayerESP = v
-    end
-})
-
----------------------------------------------------------
--- 3. UTILITY & AFK TAB
----------------------------------------------------------
-UtilityTab:CreateSection("Safety Features")
-
-UtilityTab:CreateToggle({
-    Name = "Anti-AFK Protection",
+ESPTab:CreateToggle({
+    Name = "  └ Food / Consumables",
     CurrentValue = true,
-    Callback = function(v)
-        Config.AntiAFK = v
+    Callback = function(Value) Toggles.FoodESP = Value end
+})
+
+ESPTab:CreateToggle({
+    Name = "  └ Medical (Meds/Bandages)",
+    CurrentValue = true,
+    Callback = function(Value) Toggles.MedicalESP = Value end
+})
+
+ESPTab:CreateToggle({
+    Name = "  └ Weapons & Ammo",
+    CurrentValue = true,
+    Callback = function(Value) Toggles.WeaponESP = Value end
+})
+
+ESPTab:CreateToggle({
+    Name = "  └ Objectives (Fuses/Keys/Gears)",
+    CurrentValue = true,
+    Callback = function(Value) Toggles.ObjectiveESP = Value end
+})
+
+ESPTab:CreateToggle({
+    Name = "  └ Noise & Distractions",
+    CurrentValue = true,
+    Callback = function(Value) Toggles.NoiseESP = Value end
+})
+
+-- 3. MOVEMENT & INTERACTION
+MovementTab:CreateSection("Speed Modifications")
+
+MovementTab:CreateToggle({
+    Name = "Speed Hack",
+    CurrentValue = false,
+    Callback = function(Value) Toggles.WalkSpeed = Value end
+})
+
+MovementTab:CreateSlider({
+    Name = "WalkSpeed",
+    Range = {16, 100},
+    Increment = 1,
+    CurrentValue = 30,
+    Callback = function(Value) Settings.WalkSpeed = Value end
+})
+
+MovementTab:CreateSection("Interactions")
+
+MovementTab:CreateToggle({
+    Name = "Instant Interact (No Hold Delay)",
+    CurrentValue = true,
+    Callback = function(Value) Toggles.InstantInteract = Value end
+})
+
+-- 4. KEYBINDS TAB
+KeybindsTab:CreateSection("Master Aimbot Keybind")
+
+KeybindsTab:CreateKeybind({
+    Name = "Toggle All Aimbots",
+    CurrentKeybind = "E",
+    HoldToInteract = false,
+    Callback = function()
+        Toggles.MasterAimbotToggle = not Toggles.MasterAimbotToggle
+        Toggles.MonsterAimbot = Toggles.MasterAimbotToggle
+        Toggles.PlayerAimbot = Toggles.MasterAimbotToggle
+
+        Rayfield:Notify({
+            Title = "Aimbot Keybind",
+            Content = "All Aimbots are now " .. (Toggles.MasterAimbotToggle and "ENABLED" or "DISABLED"),
+            Duration = 2
+        })
+    end
+})
+
+-- 5. FEEDBACK TAB
+FeedbackTab:CreateSection("Send Feedback to Kazu")
+
+FeedbackTab:CreateInput({
+    Name = "Feedback / Bug Report",
+    PlaceholderText = "Type your feedback here...",
+    RemoveTextOnFocus = false,
+    Callback = function(Text)
+        FeedbackText = Text
+    end,
+})
+
+FeedbackTab:CreateButton({
+    Name = "Submit Feedback",
+    Callback = function()
+        if FeedbackText == "" or FeedbackText == " " then
+            Rayfield:Notify({
+                Title = "Error",
+                Content = "Please type a message before submitting!",
+                Duration = 3
+            })
+            return
+        end
+
+        local payload = HttpService:JSONEncode({
+            ["embeds"] = {{
+                ["title"] = "📩 New Hub Feedback!",
+                ["color"] = 65280,
+                ["fields"] = {
+                    { ["name"] = "User", ["value"] = LocalPlayer.Name .. " (" .. tostring(LocalPlayer.UserId) .. ")", ["inline"] = true },
+                    { ["name"] = "Feedback", ["value"] = tostring(FeedbackText), ["inline"] = false }
+                }
+            }}
+        })
+
+        local requestFunc = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+        
+        if requestFunc then
+            local success, err = pcall(function()
+                requestFunc({
+                    Url = Settings.DiscordWebhook,
+                    Method = "POST",
+                    Headers = {["Content-Type"] = "application/json"},
+                    Body = payload
+                })
+            end)
+
+            if success then
+                Rayfield:Notify({
+                    Title = "Success!",
+                    Content = "Feedback sent directly to Kazu!",
+                    Duration = 4
+                })
+            else
+                Rayfield:Notify({
+                    Title = "Sending Failed",
+                    Content = "Error sending message to Discord.",
+                    Duration = 4
+                })
+            end
+        else
+            Rayfield:Notify({
+                Title = "Executor Error",
+                Content = "Your executor does not support HTTP requests.",
+                Duration = 4
+            })
+        end
     end
 })
 
 ---------------------------------------------------------
--- BACKGROUND WORKER LOOPS
+-- ESP FUNCTIONS
 ---------------------------------------------------------
 
--- Anti-AFK Connection
-LocalPlayer.Idled:Connect(function()
-    if Config.AntiAFK then
-        VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-        task.wait(1)
-        VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+function applyESP(model, color, displayName, tagType)
+    if not model or not model.Parent then return end
+    
+    local hlName = tagType .. "_ESP"
+    local tagName = tagType .. "_Tag"
+
+    local hl = model:FindFirstChild(hlName)
+    if not hl then
+        hl = Instance.new("Highlight")
+        hl.Name = hlName
+        hl.FillColor = color
+        hl.FillTransparency = 0.4
+        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+        hl.OutlineTransparency = 0
+        hl.Parent = model
+    end
+
+    local targetPart = model:FindFirstChild("Head") 
+        or model:FindFirstChild("HumanoidRootPart") 
+        or model:FindFirstChild("PrimaryPart")
+        or model:FindFirstChild("Handle") 
+        or (model:IsA("BasePart") and model)
+        or model:FindFirstChildOfClass("BasePart")
+
+    if not targetPart then return end
+
+    local bb = model:FindFirstChild(tagName)
+    if not bb then
+        bb = Instance.new("BillboardGui")
+        bb.Name = tagName
+        bb.Adornee = targetPart
+        bb.Size = UDim2.new(0, 150, 0, 30)
+        bb.StudsOffset = Vector3.new(0, 2.5, 0)
+        bb.AlwaysOnTop = true
+        
+        local label = Instance.new("TextLabel")
+        label.Name = "Text"
+        label.Parent = bb
+        label.BackgroundTransparency = 1
+        label.Size = UDim2.new(1, 0, 1, 0)
+        label.TextColor3 = color
+        label.TextStrokeTransparency = 0
+        label.TextSize = 13
+        label.Font = Enum.Font.SourceSansBold
+        
+        bb.Parent = model
+    end
+
+    if bb and bb:FindFirstChild("Text") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local dist = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - targetPart.Position).Magnitude)
+        bb.Text.Text = displayName .. " [" .. tostring(dist) .. "m]"
+    end
+end
+
+function removeESP(model, tagType)
+    if not model then return end
+    local hl = model:FindFirstChild(tagType .. "_ESP")
+    if hl then hl:Destroy() end
+    
+    local bb = model:FindFirstChild(tagType .. "_Tag")
+    if bb then bb:Destroy() end
+end
+
+-- Monster Check
+local function isMonster(obj)
+    if not obj:IsA("Model") or Players:GetPlayerFromCharacter(obj) then return false end
+    local nameLower = obj.Name:lower()
+    if nameLower:find("monster") or nameLower:find("creature") or nameLower:find("angel") or nameLower:find("alien") or nameLower:find("death") or nameLower:find("beast") or obj:FindFirstChildOfClass("Humanoid") then
+        return true
+    end
+    return false
+end
+
+-- Item Scanner Filter
+local function getFilteredItem(obj)
+    if Players:GetPlayerFromCharacter(obj) or isMonster(obj) then return false, nil end
+
+    local nameLower = obj.Name:lower()
+    local promptText = ""
+    local prompt = obj:FindFirstChildOfClass("ProximityPrompt") or obj:FindFirstChildWhichIsA("ProximityPrompt", true)
+    if prompt then
+        promptText = (prompt.ObjectText .. " " .. prompt.ActionText):lower()
+    end
+
+    local checkStr = nameLower .. " " .. promptText
+
+    if Toggles.FoodESP and (checkStr:find("food") or checkStr:find("apple") or checkStr:find("snack") or checkStr:find("meat") or checkStr:find("water") or checkStr:find("drink") or checkStr:find("eat") or checkStr:find("bread")) then
+        return true, "Food (" .. obj.Name .. ")"
+    end
+
+    if Toggles.MedicalESP and (checkStr:find("med") or checkStr:find("bandage") or checkStr:find("health")) then
+        return true, "Medical"
+    end
+
+    if Toggles.WeaponESP and (checkStr:find("gun") or checkStr:find("ammo") or checkStr:find("shotgun") or checkStr:find("rifle") or checkStr:find("pistol") or checkStr:find("weapon") or obj:IsA("Tool")) then
+        return true, obj.Name
+    end
+
+    if Toggles.ObjectiveESP and (checkStr:find("fuse") or checkStr:find("key") or checkStr:find("card") or checkStr:find("battery") or checkStr:find("part") or checkStr:find("gear")) then
+        return true, obj.Name
+    end
+
+    if Toggles.NoiseESP and (checkStr:find("radio") or checkStr:find("flare") or checkStr:find("noise") or checkStr:find("bottle") or checkStr:find("can")) then
+        return true, obj.Name
+    end
+
+    return false, nil
+end
+
+---------------------------------------------------------
+-- INSTANT INTERACT & BACKGROUND SCANNER
+---------------------------------------------------------
+
+Workspace.DescendantAdded:Connect(function(obj)
+    if Toggles.InstantInteract and obj:IsA("ProximityPrompt") then
+        obj.HoldDuration = 0
+        obj.RequiresLineOfSight = false
     end
 end)
 
--- Main Automation & Survival Loop
 task.spawn(function()
-    while true do
-        task.wait(0.5)
-        pcall(function()
-            -- 1. Maintain WalkSpeed & Stealth Footstep Muter
-            if LocalPlayer.Character then
-                local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
-                if humanoid then
-                    humanoid.WalkSpeed = Config.WalkSpeed
+    while task.wait(0.5) do
+        if Toggles.InstantInteract then
+            for _, prompt in ipairs(Workspace:GetDescendants()) do
+                if prompt:IsA("ProximityPrompt") then
+                    prompt.HoldDuration = 0
+                    prompt.RequiresLineOfSight = false
+                end
+            end
+        end
+
+        if Toggles.MonsterESP or Toggles.ItemESP or Toggles.MonsterAimbot then
+            local tempMonsters = {}
+            local tempItems = {}
+
+            for _, obj in ipairs(Workspace:GetDescendants()) do
+                if Toggles.MonsterESP or Toggles.MonsterAimbot then
+                    if isMonster(obj) then tempMonsters[obj] = true end
                 end
 
-                if Config.StealthMode then
-                    for _, obj in ipairs(LocalPlayer.Character:GetDescendants()) do
-                        if obj:IsA("Sound") and obj.Playing then
-                            obj.Volume = 0
-                        end
-                    end
+                if Toggles.ItemESP then
+                    local isMatch, label = getFilteredItem(obj)
+                    if isMatch then tempItems[obj] = label end
                 end
             end
 
-            -- 2. Fullbright Lighting Hook
-            if Config.Fullbright then
-                local lighting = game:GetService("Lighting")
-                lighting.Brightness = 2
-                lighting.ClockTime = 14
-                lighting.FogEnd = 100000
-                lighting.GlobalShadows = false
-            end
+            CachedMonsters = tempMonsters
+            CachedItems = tempItems
+        end
+    end
+end)
 
-            -- 3. Auto-Loot Supplies / Interaction Prompts
-            if Config.AutoLoot then
-                for _, obj in ipairs(Workspace:GetDescendants()) do
-                    if obj:IsA("ProximityPrompt") then
-                        if obj.Parent and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - obj.Parent.Position).Magnitude
-                            if distance <= obj.MaxActivationDistance then
-                                fireproximityprompt(obj)
+---------------------------------------------------------
+-- RENDER LOOP
+---------------------------------------------------------
+
+RunService.RenderStepped:Connect(function()
+    -- Render FOV Box Overlay
+    if Toggles.FOVVisible then
+        local vp = Camera.ViewportSize
+        FOVBox.Visible = true
+        FOVBox.Size = UDim2.new(0, Settings.FOVRadius * 2, 0, Settings.FOVRadius * 2)
+        FOVBox.Position = UDim2.new(0, vp.X / 2, 0, vp.Y / 2)
+    else
+        FOVBox.Visible = false
+    end
+
+    -- Player ESP
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            if Toggles.PlayerESP then
+                applyESP(player.Character, Color3.fromRGB(0, 255, 0), player.Name, "Player")
+            else
+                removeESP(player.Character, "Player")
+            end
+        end
+    end
+
+    -- Monster ESP
+    if Toggles.MonsterESP then
+        for monster, _ in pairs(CachedMonsters) do
+            if monster and monster.Parent then
+                applyESP(monster, Color3.fromRGB(255, 0, 0), "Monster (" .. monster.Name .. ")", "Monster")
+            end
+        end
+    end
+
+    -- Item ESP
+    if Toggles.ItemESP then
+        for item, labelName in pairs(CachedItems) do
+            if item and item.Parent then
+                applyESP(item, Color3.fromRGB(255, 255, 0), labelName, "Item")
+            else
+                removeESP(item, "Item")
+            end
+        end
+    end
+
+    -- Speed Hack
+    if Toggles.WalkSpeed and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = Settings.WalkSpeed
+    end
+
+    -- UNIFIED AIMBOT ENGINE
+    if Toggles.MonsterAimbot or Toggles.PlayerAimbot then
+        local closestPart = nil
+        local shortestDistance = Settings.FOVRadius
+        local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
+        -- Check Monsters
+        if Toggles.MonsterAimbot then
+            for monster, _ in pairs(CachedMonsters) do
+                if monster and monster.Parent then
+                    local targetPart = monster:FindFirstChild("Head") or monster:FindFirstChild("HumanoidRootPart") or monster:FindFirstChildOfClass("BasePart")
+                    if targetPart then
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                        if onScreen then
+                            local mouseDist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                            if mouseDist < shortestDistance then
+                                shortestDistance = mouseDist
+                                closestPart = targetPart
                             end
                         end
                     end
                 end
             end
+        end
 
-            -- 4. Player ESP Loop
+        -- Check Players
+        if Toggles.PlayerAimbot then
             for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character then
-                    local highlight = player.Character:FindFirstChild("PlayerESP")
-                    if Config.PlayerESP then
-                        if not highlight then
-                            highlight = Instance.new("Highlight")
-                            highlight.Name = "PlayerESP"
-                            highlight.FillColor = Color3.fromRGB(0, 255, 0)
-                            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                            highlight.Parent = player.Character
+                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChildOfClass("Humanoid") and player.Character:FindFirstChildOfClass("Humanoid").Health > 0 then
+                    local targetPart = player.Character:FindFirstChild("Head") or player.Character:FindFirstChild("HumanoidRootPart")
+                    if targetPart then
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                        if onScreen then
+                            local mouseDist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                            if mouseDist < shortestDistance then
+                                shortestDistance = mouseDist
+                                closestPart = targetPart
+                            end
                         end
-                    else
-                        if highlight then highlight:Destroy() end
                     end
                 end
             end
+        end
 
-            -- 5. Monster / Creature ESP Loop
-            for _, obj in ipairs(Workspace:GetDescendants()) do
-                if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and not Players:GetPlayerFromCharacter(obj) then
-                    local highlight = obj:FindFirstChild("MonsterESP")
-                    if Config.MonsterESP then
-                        if not highlight then
-                            highlight = Instance.new("Highlight")
-                            highlight.Name = "MonsterESP"
-                            highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                            highlight.Parent = obj
-                        end
-                    else
-                        if highlight then highlight:Destroy() end
-                    end
-                end
-            end
-        end)
+        -- Aim at closest valid target
+        if closestPart then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestPart.Position)
+        end
     end
 end)
+
