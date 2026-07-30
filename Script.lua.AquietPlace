@@ -2,6 +2,9 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
@@ -21,15 +24,7 @@ Rayfield:Notify({
     Title = "Welcome!",
     Content = "Credit to Aziz | Script Loaded Successfully!",
     Duration = 6.5,
-    Image = 4483362458,
-    Actions = {
-        Ignore = {
-            Name = "Okay",
-            Callback = function()
-                print("Welcome notification acknowledged.")
-            end
-        },
-    },
+    Image = 4483362458
 })
 
 -- State Variables
@@ -37,24 +32,61 @@ local Toggles = {
     PlayerESP = false,
     MonsterESP = false,
     ItemESP = false,
-    -- Specific Item Category Toggles
     MedicalESP = true,
     WeaponESP = true,
     ObjectiveESP = true,
     NoiseESP = true,
-    Aimbot = false,
+    FoodESP = true,
+    MonsterAimbot = false,
+    PlayerAimbot = false,
+    MasterAimbotToggle = false, -- Controls single keybind state
     FOVVisible = false,
-    WalkSpeed = false
+    WalkSpeed = false,
+    InstantInteract = true
 }
 
 local Settings = {
     FOVRadius = 200,
-    WalkSpeed = 30
+    WalkSpeed = 30,
+    DiscordWebhook = "https://discord.com/api/webhooks/1532342380722782349/sOcdaPAqhYZF_xVwWXm8gbq1b11w79_LqHZCLFpnaM_-4LqusulVA5kQENJX92g57Va1"
 }
 
 -- Caches
 local CachedMonsters = {}
 local CachedItems = {}
+local FeedbackText = ""
+
+---------------------------------------------------------
+-- UI BASED FOV BOX OVERLAY
+---------------------------------------------------------
+
+local FOVGui = Instance.new("ScreenGui")
+FOVGui.Name = "AzizFOVBoxOverlay"
+FOVGui.ResetOnSpawn = false
+FOVGui.DisplayOrder = 999
+
+local ParentHost = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or LocalPlayer:WaitForChild("PlayerGui")
+FOVGui.Parent = ParentHost
+
+local FOVBox = Instance.new("Frame")
+FOVBox.Name = "FOVBox"
+FOVBox.AnchorPoint = Vector2.new(0.5, 0.5)
+FOVBox.BackgroundTransparency = 1
+FOVBox.BorderColor3 = Color3.fromRGB(0, 255, 255)
+FOVBox.BorderSizePixel = 2
+FOVBox.Visible = false
+FOVBox.Parent = FOVGui
+
+local FOVLabel = Instance.new("TextLabel")
+FOVLabel.Name = "FOVLabel"
+FOVLabel.Size = UDim2.new(1, 0, 0, 18)
+FOVLabel.Position = UDim2.new(0, 0, 0, -20)
+FOVLabel.BackgroundTransparency = 1
+FOVLabel.Text = "[ AIMBOT TARGET ZONE ]"
+FOVLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
+FOVLabel.TextSize = 11
+FOVLabel.Font = Enum.Font.SourceSansBold
+FOVLabel.Parent = FOVBox
 
 ---------------------------------------------------------
 -- UI TABS
@@ -63,22 +95,34 @@ local CachedItems = {}
 local CombatTab = Window:CreateTab("Combat", 4483362458)
 local ESPTab = Window:CreateTab("ESP", 4483362458)
 local MovementTab = Window:CreateTab("Movement", 4483362458)
+local KeybindsTab = Window:CreateTab("Keybinds", 4483362458)
+local FeedbackTab = Window:CreateTab("Feedback", 4483362458)
 
 -- 1. COMBAT
+CombatTab:CreateSection("Aimbot Targets")
+
 CombatTab:CreateToggle({
     Name = "Monster Aimbot",
     CurrentValue = false,
-    Callback = function(Value) Toggles.Aimbot = Value end
+    Callback = function(Value) Toggles.MonsterAimbot = Value end
 })
 
 CombatTab:CreateToggle({
-    Name = "Show FOV Circle",
+    Name = "Player Aimbot",
+    CurrentValue = false,
+    Callback = function(Value) Toggles.PlayerAimbot = Value end
+})
+
+CombatTab:CreateSection("Aimbot Settings")
+
+CombatTab:CreateToggle({
+    Name = "Show Target Zone Box",
     CurrentValue = false,
     Callback = function(Value) Toggles.FOVVisible = Value end
 })
 
 CombatTab:CreateSlider({
-    Name = "Aimbot FOV Radius",
+    Name = "Aimbot FOV Size",
     Range = {50, 500},
     Increment = 10,
     CurrentValue = 200,
@@ -119,6 +163,12 @@ ESPTab:CreateToggle({
 })
 
 ESPTab:CreateToggle({
+    Name = "  └ Food / Consumables",
+    CurrentValue = true,
+    Callback = function(Value) Toggles.FoodESP = Value end
+})
+
+ESPTab:CreateToggle({
     Name = "  └ Medical (Meds/Bandages)",
     CurrentValue = true,
     Callback = function(Value) Toggles.MedicalESP = Value end
@@ -142,7 +192,9 @@ ESPTab:CreateToggle({
     Callback = function(Value) Toggles.NoiseESP = Value end
 })
 
--- 3. MOVEMENT
+-- 3. MOVEMENT & INTERACTION
+MovementTab:CreateSection("Speed Modifications")
+
 MovementTab:CreateToggle({
     Name = "Speed Hack",
     CurrentValue = false,
@@ -157,16 +209,107 @@ MovementTab:CreateSlider({
     Callback = function(Value) Settings.WalkSpeed = Value end
 })
 
----------------------------------------------------------
--- CORE FUNCTIONS
----------------------------------------------------------
+MovementTab:CreateSection("Interactions")
 
-local FOVCircle = Drawing.new("Circle")
-FOVCircle.Color = Color3.fromRGB(255, 0, 0)
-FOVCircle.Thickness = 1.5
-FOVCircle.NumSides = 64
-FOVCircle.Filled = false
-FOVCircle.Transparency = 1
+MovementTab:CreateToggle({
+    Name = "Instant Interact (No Hold Delay)",
+    CurrentValue = true,
+    Callback = function(Value) Toggles.InstantInteract = Value end
+})
+
+-- 4. KEYBINDS TAB (ONLY SINGLE AIMBOT KEYBIND REMAINS)
+KeybindsTab:CreateSection("Master Aimbot Keybind")
+
+KeybindsTab:CreateKeybind({
+    Name = "Toggle All Aimbots",
+    CurrentKeybind = "E",
+    HoldToInteract = false,
+    Callback = function()
+        Toggles.MasterAimbotToggle = not Toggles.MasterAimbotToggle
+        Toggles.MonsterAimbot = Toggles.MasterAimbotToggle
+        Toggles.PlayerAimbot = Toggles.MasterAimbotToggle
+
+        Rayfield:Notify({
+            Title = "Aimbot Keybind",
+            Content = "All Aimbots are now " .. (Toggles.MasterAimbotToggle and "ENABLED" or "DISABLED"),
+            Duration = 2
+        })
+    end
+})
+
+-- 5. FEEDBACK TAB
+FeedbackTab:CreateSection("Send Feedback to Aziz")
+
+FeedbackTab:CreateInput({
+    Name = "Feedback / Bug Report",
+    PlaceholderText = "Type your feedback here...",
+    RemoveTextOnFocus = false,
+    Callback = function(Text)
+        FeedbackText = Text
+    end,
+})
+
+FeedbackTab:CreateButton({
+    Name = "Submit Feedback",
+    Callback = function()
+        if FeedbackText == "" or FeedbackText == " " then
+            Rayfield:Notify({
+                Title = "Error",
+                Content = "Please type a message before submitting!",
+                Duration = 3
+            })
+            return
+        end
+
+        local payload = HttpService:JSONEncode({
+            ["embeds"] = {{
+                ["title"] = "📩 New Hub Feedback!",
+                ["color"] = 65280,
+                ["fields"] = {
+                    { ["name"] = "User", ["value"] = LocalPlayer.Name .. " (" .. tostring(LocalPlayer.UserId) .. ")", ["inline"] = true },
+                    { ["name"] = "Feedback", ["value"] = tostring(FeedbackText), ["inline"] = false }
+                }
+            }}
+        })
+
+        local requestFunc = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+        
+        if requestFunc then
+            local success, err = pcall(function()
+                requestFunc({
+                    Url = Settings.DiscordWebhook,
+                    Method = "POST",
+                    Headers = {["Content-Type"] = "application/json"},
+                    Body = payload
+                })
+            end)
+
+            if success then
+                Rayfield:Notify({
+                    Title = "Success!",
+                    Content = "Feedback sent directly to Aziz!",
+                    Duration = 4
+                })
+            else
+                Rayfield:Notify({
+                    Title = "Sending Failed",
+                    Content = "Error sending message to Discord.",
+                    Duration = 4
+                })
+            end
+        else
+            Rayfield:Notify({
+                Title = "Executor Error",
+                Content = "Your executor does not support HTTP requests.",
+                Duration = 4
+            })
+        end
+    end
+})
+
+---------------------------------------------------------
+-- ESP FUNCTIONS
+---------------------------------------------------------
 
 function applyESP(model, color, displayName, tagType)
     if not model or not model.Parent then return end
@@ -241,35 +384,35 @@ local function isMonster(obj)
     return false
 end
 
--- Filtered Item Checker
+-- Item Scanner Filter
 local function getFilteredItem(obj)
     if Players:GetPlayerFromCharacter(obj) or isMonster(obj) then return false, nil end
 
     local nameLower = obj.Name:lower()
     local promptText = ""
-    local prompt = obj:FindFirstChildOfClass("ProximityPrompt")
+    local prompt = obj:FindFirstChildOfClass("ProximityPrompt") or obj:FindFirstChildWhichIsA("ProximityPrompt", true)
     if prompt then
         promptText = (prompt.ObjectText .. " " .. prompt.ActionText):lower()
     end
 
     local checkStr = nameLower .. " " .. promptText
 
-    -- Medical
+    if Toggles.FoodESP and (checkStr:find("food") or checkStr:find("apple") or checkStr:find("snack") or checkStr:find("meat") or checkStr:find("water") or checkStr:find("drink") or checkStr:find("eat") or checkStr:find("bread")) then
+        return true, "Food (" .. obj.Name .. ")"
+    end
+
     if Toggles.MedicalESP and (checkStr:find("med") or checkStr:find("bandage") or checkStr:find("health")) then
         return true, "Medical"
     end
 
-    -- Weapons / Ammo
     if Toggles.WeaponESP and (checkStr:find("gun") or checkStr:find("ammo") or checkStr:find("shotgun") or checkStr:find("rifle") or checkStr:find("pistol") or checkStr:find("weapon") or obj:IsA("Tool")) then
         return true, obj.Name
     end
 
-    -- Objectives
     if Toggles.ObjectiveESP and (checkStr:find("fuse") or checkStr:find("key") or checkStr:find("card") or checkStr:find("battery") or checkStr:find("part") or checkStr:find("gear")) then
         return true, obj.Name
     end
 
-    -- Noise / Distractions
     if Toggles.NoiseESP and (checkStr:find("radio") or checkStr:find("flare") or checkStr:find("noise") or checkStr:find("bottle") or checkStr:find("can")) then
         return true, obj.Name
     end
@@ -278,17 +421,33 @@ local function getFilteredItem(obj)
 end
 
 ---------------------------------------------------------
--- BACKGROUND SCANNER (Runs every 1.5 seconds)
+-- INSTANT INTERACT & BACKGROUND SCANNER
 ---------------------------------------------------------
 
+Workspace.DescendantAdded:Connect(function(obj)
+    if Toggles.InstantInteract and obj:IsA("ProximityPrompt") then
+        obj.HoldDuration = 0
+        obj.RequiresLineOfSight = false
+    end
+end)
+
 task.spawn(function()
-    while task.wait(1.5) do
-        if Toggles.MonsterESP or Toggles.ItemESP or Toggles.Aimbot then
+    while task.wait(0.5) do
+        if Toggles.InstantInteract then
+            for _, prompt in ipairs(Workspace:GetDescendants()) do
+                if prompt:IsA("ProximityPrompt") then
+                    prompt.HoldDuration = 0
+                    prompt.RequiresLineOfSight = false
+                end
+            end
+        end
+
+        if Toggles.MonsterESP or Toggles.ItemESP or Toggles.MonsterAimbot then
             local tempMonsters = {}
             local tempItems = {}
 
             for _, obj in ipairs(Workspace:GetDescendants()) do
-                if Toggles.MonsterESP or Toggles.Aimbot then
+                if Toggles.MonsterESP or Toggles.MonsterAimbot then
                     if isMonster(obj) then tempMonsters[obj] = true end
                 end
 
@@ -309,9 +468,15 @@ end)
 ---------------------------------------------------------
 
 RunService.RenderStepped:Connect(function()
-    FOVCircle.Visible = Toggles.FOVVisible
-    FOVCircle.Radius = Settings.FOVRadius
-    FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    -- Render FOV Box Overlay
+    if Toggles.FOVVisible then
+        local vp = Camera.ViewportSize
+        FOVBox.Visible = true
+        FOVBox.Size = UDim2.new(0, Settings.FOVRadius * 2, 0, Settings.FOVRadius * 2)
+        FOVBox.Position = UDim2.new(0, vp.X / 2, 0, vp.Y / 2)
+    else
+        FOVBox.Visible = false
+    end
 
     -- Player ESP
     for _, player in ipairs(Players:GetPlayers()) do
@@ -349,28 +514,51 @@ RunService.RenderStepped:Connect(function()
         LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = Settings.WalkSpeed
     end
 
-    -- Monster Aimbot
-    if Toggles.Aimbot then
+    -- UNIFIED AIMBOT ENGINE
+    if Toggles.MonsterAimbot or Toggles.PlayerAimbot then
         local closestPart = nil
         local shortestDistance = Settings.FOVRadius
         local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 
-        for monster, _ in pairs(CachedMonsters) do
-            if monster and monster.Parent then
-                local targetPart = monster:FindFirstChild("Head") or monster:FindFirstChild("HumanoidRootPart") or monster:FindFirstChildOfClass("BasePart")
-                if targetPart then
-                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-                    if onScreen then
-                        local mouseDist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                        if mouseDist < shortestDistance then
-                            shortestDistance = mouseDist
-                            closestPart = targetPart
+        -- Check Monsters
+        if Toggles.MonsterAimbot then
+            for monster, _ in pairs(CachedMonsters) do
+                if monster and monster.Parent then
+                    local targetPart = monster:FindFirstChild("Head") or monster:FindFirstChild("HumanoidRootPart") or monster:FindFirstChildOfClass("BasePart")
+                    if targetPart then
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                        if onScreen then
+                            local mouseDist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                            if mouseDist < shortestDistance then
+                                shortestDistance = mouseDist
+                                closestPart = targetPart
+                            end
                         end
                     end
                 end
             end
         end
 
+        -- Check Players
+        if Toggles.PlayerAimbot then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChildOfClass("Humanoid") and player.Character:FindFirstChildOfClass("Humanoid").Health > 0 then
+                    local targetPart = player.Character:FindFirstChild("Head") or player.Character:FindFirstChild("HumanoidRootPart")
+                    if targetPart then
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                        if onScreen then
+                            local mouseDist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                            if mouseDist < shortestDistance then
+                                shortestDistance = mouseDist
+                                closestPart = targetPart
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        -- Aim at closest valid target
         if closestPart then
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestPart.Position)
         end
