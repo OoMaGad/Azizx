@@ -48,6 +48,7 @@ local Toggles = {
 local Settings = {
     FOVRadius = 200,
     WalkSpeed = 30,
+    CameraFOV = 70,
     DiscordWebhook = "https://discord.com/api/webhooks/1532342380722782349/sOcdaPAqhYZF_xVwWXm8gbq1b11w79_LqHZCLFpnaM_-4LqusulVA5kQENJX92g57Va1"
 }
 
@@ -207,6 +208,16 @@ MovementTab:CreateSlider({
     Increment = 1,
     CurrentValue = 30,
     Callback = function(Value) Settings.WalkSpeed = Value end
+})
+
+MovementTab:CreateSection("Camera View")
+
+MovementTab:CreateSlider({
+    Name = "Camera FOV",
+    Range = {70, 120},
+    Increment = 1,
+    CurrentValue = 70,
+    Callback = function(Value) Settings.CameraFOV = Value end
 })
 
 MovementTab:CreateSection("Interactions")
@@ -476,6 +487,11 @@ RunService.RenderStepped:Connect(function()
         FOVBox.Position = UDim2.new(0, vp.X / 2, 0, vp.Y / 2)
     else
         FOVBox.Visible = false
+    end
+
+    -- Camera FOV Update
+    if Settings.CameraFOV then
+        Camera.FieldOfView = Settings.CameraFOV
     end
 
     -- Player ESP
