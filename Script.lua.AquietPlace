@@ -3,6 +3,7 @@ local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
@@ -10,291 +11,222 @@ local Camera = Workspace.CurrentCamera
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "Universal Utility Hub",
-   LoadingTitle = "Loading System...",
-   ConfigurationSaving = { Enabled = false },
-   KeySystem = false
+    Name = "Universal Utility Hub",
+    LoadingTitle = "Loading System...",
+    ConfigurationSaving = { Enabled = false },
+    KeySystem = false
 })
 
--- Toggles & Settings
+-- State Variables
 local Toggles = {
-   PlayerESP = false,
-   MonsterESP = false,
-   ItemESP = false,
-   WeaponESP = false,
-   Aimbot = false,
-   FOVVisible = false,
-   WalkSpeed = false,
-   JumpPower = false
+    PlayerESP = false,
+    MonsterESP = false,
+    ItemESP = false,
+    WeaponESP = false,
+    Aimbot = false,
+    FOVVisible = false,
+    WalkSpeed = false,
+    JumpPower = false
 }
 
 local Settings = {
-   FOVRadius = 150,
-   AimbotKey = Enum.UserInputType.MouseButton2, -- Right Click to Aim
-   WalkSpeed = 50,
-   JumpPower = 100,
-   ItemFolder = "Items" -- Adjust if game uses specific folder
+    FOVRadius = 150,
+    AimbotKey = Enum.UserInputType.MouseButton2,
+    WalkSpeed = 50,
+    JumpPower = 100,
+    ItemFolder = "Items"
 }
 
---------------------------------------------------------------------------------
--- FOV CIRCLE DRAWING
---------------------------------------------------------------------------------
+-- Rayfield UI Setup
+local MainTab = Window:CreateTab("Main", 4483362458)
+
+MainTab:CreateToggle({
+    Name = "Player ESP",
+    CurrentValue = false,
+    Callback = function(Value) Toggles.PlayerESP = Value end
+})
+
+MainTab:CreateToggle({
+    Name = "Monster ESP",
+    CurrentValue = false,
+    Callback = function(Value) Toggles.MonsterESP = Value end
+})
+
+MainTab:CreateToggle({
+    Name = "Item ESP",
+    CurrentValue = false,
+    Callback = function(Value) Toggles.ItemESP = Value end
+})
+
+MainTab:CreateToggle({
+    Name = "Weapon ESP",
+    CurrentValue = false,
+    Callback = function(Value) Toggles.WeaponESP = Value end
+})
+
+MainTab:CreateToggle({
+    Name = "Aimbot",
+    CurrentValue = false,
+    Callback = function(Value) Toggles.Aimbot = Value end
+})
+
+MainTab:CreateToggle({
+    Name = "Show FOV Circle",
+    CurrentValue = false,
+    Callback = function(Value) Toggles.FOVVisible = Value end
+})
+
+MainTab:CreateSlider({
+    Name = "FOV Radius",
+    Range = {50, 500},
+    Increment = 10,
+    CurrentValue = 150,
+    Callback = function(Value) Settings.FOVRadius = Value end
+})
+
+MainTab:CreateToggle({
+    Name = "Enable WalkSpeed",
+    CurrentValue = false,
+    Callback = function(Value) Toggles.WalkSpeed = Value end
+})
+
+MainTab:CreateSlider({
+    Name = "WalkSpeed",
+    Range = {16, 200},
+    Increment = 1,
+    CurrentValue = 50,
+    Callback = function(Value) Settings.WalkSpeed = Value end
+})
+
+MainTab:CreateToggle({
+    Name = "Enable JumpPower",
+    CurrentValue = false,
+    Callback = function(Value) Toggles.JumpPower = Value end
+})
+
+MainTab:CreateSlider({
+    Name = "JumpPower",
+    Range = {50, 300},
+    Increment = 5,
+    CurrentValue = 100,
+    Callback = function(Value) Settings.JumpPower = Value end
+})
+
+---------------------------------------------------------
+-- FUNCTIONALITY IMPLEMENTATION
+---------------------------------------------------------
+
+-- 1. FOV Circle Drawing
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Color = Color3.fromRGB(255, 255, 255)
 FOVCircle.Thickness = 1.5
 FOVCircle.NumSides = 64
 FOVCircle.Filled = false
-FOVCircle.Transparency = 0.8
-FOVCircle.Visible = false
+FOVCircle.Transparency = 1
 
---------------------------------------------------------------------------------
--- UI TABS
---------------------------------------------------------------------------------
-local VisualsTab = Window:CreateTab("Visuals", 4483362458)
-local CombatTab = Window:CreateTab("Combat", 4483362458)
-local MovementTab = Window:CreateTab("Movement", 4483362458)
-
--- Visuals Controls
-VisualsTab:CreateSection("ESP Settings")
-VisualsTab:CreateToggle({
-   Name = "Player ESP",
-   CurrentValue = false,
-   Callback = function(v) Toggles.PlayerESP = v end
-})
-VisualsTab:CreateToggle({
-   Name = "Monster ESP",
-   CurrentValue = false,
-   Callback = function(v) Toggles.MonsterESP = v end
-})
-VisualsTab:CreateToggle({
-   Name = "Item ESP",
-   CurrentValue = false,
-   Callback = function(v) Toggles.ItemESP = v end
-})
-VisualsTab:CreateToggle({
-   Name = "Weapon/Tool ESP",
-   CurrentValue = false,
-   Callback = function(v) Toggles.WeaponESP = v end
-})
-
--- Combat Controls
-CombatTab:CreateSection("Aimbot")
-CombatTab:CreateToggle({
-   Name = "Enable Aimbot (Hold Right Click)",
-   CurrentValue = false,
-   Callback = function(v) Toggles.Aimbot = v end
-})
-CombatTab:CreateToggle({
-   Name = "Show FOV Circle",
-   CurrentValue = false,
-   Callback = function(v) Toggles.FOVVisible = v end
-})
-CombatTab:CreateSlider({
-   Name = "FOV Size",
-   Range = {50, 400},
-   Increment = 10,
-   CurrentValue = 150,
-   Callback = function(v) Settings.FOVRadius = v end
-})
-
--- Movement Controls
-MovementTab:CreateSection("Modifiers")
-MovementTab:CreateToggle({
-   Name = "Custom WalkSpeed",
-   CurrentValue = false,
-   Callback = function(v) Toggles.WalkSpeed = v end
-})
-MovementTab:CreateSlider({
-   Name = "Speed",
-   Range = {16, 200},
-   Increment = 1,
-   CurrentValue = 50,
-   Callback = function(v) Settings.WalkSpeed = v end
-})
-MovementTab:CreateToggle({
-   Name = "Custom JumpPower",
-   CurrentValue = false,
-   Callback = function(v) Toggles.JumpPower = v end
-})
-MovementTab:CreateSlider({
-   Name = "Jump Power",
-   Range = {50, 300},
-   Increment = 5,
-   CurrentValue = 100,
-   Callback = function(v) Settings.JumpPower = v end
-})
-
---------------------------------------------------------------------------------
--- HELPER FUNCTIONS
---------------------------------------------------------------------------------
-local function isRealPlayer(model)
-   for _, p in ipairs(Players:GetPlayers()) do
-      if p.Character == model then return true end
-   end
-   return false
+-- 2. Highlight ESP Helper
+local function applyHighlight(model, color, name)
+    if not model or not model:IsA("Model") and not model:IsA("BasePart") then return end
+    local existing = model:FindFirstChild(name .. "_ESP")
+    if not existing then
+        local hl = Instance.new("Highlight")
+        hl.Name = name .. "_ESP"
+        hl.FillColor = color
+        hl.FillTransparency = 0.5
+        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+        hl.OutlineTransparency = 0
+        hl.Parent = model
+    end
 end
 
-local function applyESP(model, name, color, tag)
-   local root = model.PrimaryPart or model:FindFirstChild("HumanoidRootPart") or model:FindFirstChildOfClass("BasePart")
-   if not root then return end
-
-   local hlName = "ESP_HL_" .. tag
-   local bbName = "ESP_BB_" .. tag
-
-   if not model:FindFirstChild(hlName) then
-      local h = Instance.new("Highlight")
-      h.Name = hlName
-      h.FillColor = color
-      h.OutlineColor = Color3.fromRGB(255, 255, 255)
-      h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-      h.Parent = model
-   end
-
-   local bb = root:FindFirstChild(bbName)
-   if not bb then
-      bb = Instance.new("BillboardGui")
-      bb.Name = bbName
-      bb.Size = UDim2.new(0, 120, 0, 40)
-      bb.StudsOffset = Vector3.new(0, 2.5, 0)
-      bb.AlwaysOnTop = true
-      bb.Parent = root
-
-      local lbl = Instance.new("TextLabel")
-      lbl.Name = "DistanceLabel"
-      lbl.Size = UDim2.new(1, 0, 1, 0)
-      lbl.BackgroundTransparency = 1
-      lbl.TextColor3 = color
-      lbl.Font = Enum.Font.SourceSansBold
-      lbl.TextSize = 13
-      lbl.TextStrokeTransparency = 0
-      lbl.Parent = bb
-   end
-
-   local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-   if myRoot and bb:FindFirstChild("DistanceLabel") then
-      local dist = math.floor((myRoot.Position - root.Position).Magnitude)
-      bb.DistanceLabel.Text = name .. "\n[" .. dist .. "m]"
-   end
+local function removeHighlight(model, name)
+    if not model then return end
+    local existing = model:FindFirstChild(name .. "_ESP")
+    if existing then
+        existing:Destroy()
+    end
 end
 
-local function removeESP(tag)
-   for _, obj in ipairs(Workspace:GetDescendants()) do
-      if obj.Name == "ESP_HL_" .. tag or obj.Name == "ESP_BB_" .. tag then
-         obj:Destroy()
-      end
-   end
-end
+-- 3. Target Finder for Aimbot
+local function getClosestTarget()
+    local closestTarget = nil
+    local shortestDistance = Settings.FOVRadius
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 
-local function getClosestTargetInFOV()
-   local closest, shortestDist = nil, Settings.FOVRadius
-   local mousePos = UserInputService:GetMouseLocation()
-
-   local function checkModel(model)
-      local head = model:FindFirstChild("Head") or model:FindFirstChild("HumanoidRootPart")
-      if head then
-         local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
-         if onScreen then
-            local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-            if dist < shortestDist then
-               shortestDist = dist
-               closest = head
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local head = player.Character.Head
+            local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+            
+            if onScreen then
+                local mouseDist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                if mouseDist < shortestDistance then
+                    shortestDistance = mouseDist
+                    closestTarget = head
+                end
             end
-         end
-      end
-   end
+        end
+    end
 
-   -- Check Players
-   for _, p in ipairs(Players:GetPlayers()) do
-      if p ~= LocalPlayer and p.Character then
-         checkModel(p.Character)
-      end
-   end
-
-   -- Check Monsters
-   for _, obj in ipairs(Workspace:GetDescendants()) do
-      if obj:IsA("Humanoid") and obj.Parent and obj.Parent:IsA("Model") then
-         if not isRealPlayer(obj.Parent) and obj.Health > 0 then
-            checkModel(obj.Parent)
-         end
-      end
-   end
-
-   return closest
+    return closestTarget
 end
 
---------------------------------------------------------------------------------
--- MAIN RENDER LOOP
---------------------------------------------------------------------------------
+-- 4. Main Update Loop (Runs every frame)
 RunService.RenderStepped:Connect(function()
-   -- Movement Mods
-   local char = LocalPlayer.Character
-   local hum = char and char:FindFirstChildOfClass("Humanoid")
-   if hum then
-      hum.WalkSpeed = Toggles.WalkSpeed and Settings.WalkSpeed or 16
-      if Toggles.JumpPower then
-         hum.UseJumpPower = true
-         hum.JumpPower = Settings.JumpPower
-      else
-         hum.JumpPower = 50
-      end
-   end
+    -- FOV Circle Position
+    FOVCircle.Visible = Toggles.FOVVisible
+    FOVCircle.Radius = Settings.FOVRadius
+    FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 
-   -- FOV Circle Position
-   FOVCircle.Visible = Toggles.FOVVisible
-   FOVCircle.Radius = Settings.FOVRadius
-   FOVCircle.Position = UserInputService:GetMouseLocation()
-
-   -- Aimbot Execution
-   if Toggles.Aimbot and UserInputService:IsMouseButtonPressed(Settings.AimbotKey) then
-      local target = getClosestTargetInFOV()
-      if target then
-         Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
-      end
-   end
-
-   -- Player ESP
-   if Toggles.PlayerESP then
-      for _, p in ipairs(Players:GetPlayers()) do
-         if p ~= LocalPlayer and p.Character then
-            applyESP(p.Character, p.Name, Color3.fromRGB(255, 60, 60), "Player")
-         end
-      end
-   else
-      removeESP("Player")
-   end
-
-   -- Monster ESP
-   if Toggles.MonsterESP then
-      for _, obj in ipairs(Workspace:GetDescendants()) do
-         if obj:IsA("Humanoid") and obj.Parent and obj.Parent:IsA("Model") then
-            local model = obj.Parent
-            if not isRealPlayer(model) and obj.Health > 0 then
-               applyESP(model, model.Name, Color3.fromRGB(255, 160, 0), "Monster")
+    -- Player ESP
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            if Toggles.PlayerESP then
+                applyHighlight(player.Character, Color3.fromRGB(0, 255, 0), "Player")
+            else
+                removeHighlight(player.Character, "Player")
             end
-         end
-      end
-   else
-      removeESP("Monster")
-   end
+        end
+    end
 
-   -- Item & Weapon ESP
-   if Toggles.ItemESP or Toggles.WeaponESP then
-      for _, obj in ipairs(Workspace:GetChildren()) do
-         if obj:IsA("Tool") then
-            if Toggles.WeaponESP then
-               applyESP(obj, obj.Name, Color3.fromRGB(80, 200, 255), "Weapon")
+    -- Monster / Item ESP Scanning in Workspace
+    for _, obj in ipairs(Workspace:GetChildren()) do
+        -- Monster Detection
+        if obj:FindFirstChildOfClass("Humanoid") and not Players:GetPlayerFromCharacter(obj) then
+            if Toggles.MonsterESP then
+                applyHighlight(obj, Color3.fromRGB(255, 0, 0), "Monster")
+            else
+                removeHighlight(obj, "Monster")
             end
-         elseif obj:IsA("Model") or obj:IsA("BasePart") then
-            if Toggles.ItemESP and obj.Name ~= "Terrain" then
-               local container = Workspace:FindFirstChild(Settings.ItemFolder)
-               if container and obj:IsDescendantOf(container) then
-                  applyESP(obj, obj.Name, Color3.fromRGB(80, 255, 140), "Item")
-               end
+        end
+
+        -- Item / Weapon ESP Detection
+        if obj:IsA("Tool") or obj:IsA("Model") and (obj:FindFirstChild("Handle") or obj:FindFirstChild("TouchInterest")) then
+            if Toggles.ItemESP or Toggles.WeaponESP then
+                applyHighlight(obj, Color3.fromRGB(255, 255, 0), "Item")
+            else
+                removeHighlight(obj, "Item")
             end
-         end
-      end
-   else
-      removeESP("Weapon")
-      removeESP("Item")
-   end
+        end
+    end
+
+    -- Character Speed & Jump Modification
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if Toggles.WalkSpeed then
+            humanoid.WalkSpeed = Settings.WalkSpeed
+        end
+        if Toggles.JumpPower then
+            humanoid.UseJumpPower = true
+            humanoid.JumpPower = Settings.JumpPower
+        end
+    end
+
+    -- Camera Aimbot Locking
+    if Toggles.Aimbot then
+        local targetHead = getClosestTarget()
+        if targetHead then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
+        end
+    end
 end)
