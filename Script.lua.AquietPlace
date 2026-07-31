@@ -1,4 +1,4 @@
-print("[Kazu Hub] Booting Mobile-Optimized version for Delta...")
+print("[ZanN hub] Booting Mobile-Optimized version for Delta...")
 
 -- Services
 local Players = game:GetService("Players")
@@ -32,7 +32,7 @@ local successLib, err = pcall(function()
 end)
 
 if not successLib or type(Library) ~= "table" then
-    warn("[Kazu Hub] Failed to load Obsidian: " .. tostring(err))
+    warn("[ZanN hub] Failed to load Obsidian: " .. tostring(err))
     return
 end
 
@@ -40,7 +40,7 @@ end
 -- WINDOW CREATION
 ---------------------------------------------------------
 local Window = Library:CreateWindow({
-    Title = "A Quiet Place | Kazu Hub", 
+    Title = "ZanN hub", 
     Center = true,
     AutoShow = true,
     TabPadding = 8,
@@ -48,14 +48,14 @@ local Window = Library:CreateWindow({
     ShowCustomCursor = false
 })
 
--- Robust Top-Right Header Image Injector (Preserved exactly)
+-- Robust Top-Right Header Image Injector
 task.spawn(function()
     task.wait(0.8)
     pcall(function()
         for _, gui in ipairs(gethui():GetChildren()) do
             if gui:IsA("ScreenGui") then
                 for _, desc in ipairs(gui:GetDescendants()) do
-                    if desc:IsA("TextLabel") and (desc.Text:find("Kazu Hub") or desc.Name:lower():find("title")) then
+                    if desc:IsA("TextLabel") and (desc.Text:find("ZanN hub") or desc.Name:lower():find("title")) then
                         local topBar = desc.Parent
                         if topBar and topBar:IsA("Frame") then
                             if not topBar:FindFirstChild("CustomHeaderIconRight") then
@@ -77,7 +77,7 @@ task.spawn(function()
     end)
 end)
 
--- Replace footer with a bigger :3 text (Preserved exactly)
+-- Replace footer with a bigger :3 text
 task.spawn(function()
     while task.wait(0.5) do
         pcall(function()
@@ -110,7 +110,7 @@ local CombatGroup = Tabs.Combat:AddLeftGroupbox("Aimbot Settings", "crosshair")
 local ESPGroup = Tabs.ESP:AddLeftGroupbox("Entities ESP", "eye")
 local LootGroup = Tabs.ESP:AddRightGroupbox("Exact Loot & Item Filters", "package")
 local MoveGroup = Tabs.Movement:AddLeftGroupbox("Movement & Interactions", "zap")
-local FeedbackGroup = Tabs.Feedback:AddLeftGroupbox("Send Feedback to Kazu", "message-square")
+local FeedbackGroup = Tabs.Feedback:AddLeftGroupbox("Send Feedback to ZanN", "message-square")
 local SettingsGroup = Tabs.Settings:AddLeftGroupbox("Menu Utilities", "settings")
 local ConfigGroup = Tabs.Settings:AddRightGroupbox("Configuration", "folder")
 
@@ -216,8 +216,8 @@ ConfigGroup:AddButton({
             end
         end
         
-        if not _isfolder("KazuHub_Configs") then _makefolder("KazuHub_Configs") end
-        _writefile("KazuHub_Configs/" .. name .. ".json", HttpService:JSONEncode(data))
+        if not _isfolder("ZanNHub_Configs") then _makefolder("ZanNHub_Configs") end
+        _writefile("ZanNHub_Configs/" .. name .. ".json", HttpService:JSONEncode(data))
         Library:Notify("Config '" .. name .. "' created!", 4)
     end,
 })
@@ -381,6 +381,7 @@ task.spawn(function()
         end
 
         local tempMonsters, tempItems = {}, {}
+        -- Only loop through workspace descendants if features are actively turned on to save performance
         if Toggles and (Toggles.MonsterESP.Value or Toggles.ItemESP.Value or Toggles.MonsterAimbot.Value) then
             for _, obj in ipairs(Workspace:GetDescendants()) do
                 if Toggles.MonsterESP.Value or Toggles.MonsterAimbot.Value then
@@ -461,8 +462,12 @@ RunService.RenderStepped:Connect(function()
             end
         end
 
-        if closestPart then Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestPart.Position) end
+        -- IMPROVED: Smooth Interpolation (Lerp) instead of rigid instant snapping
+        if closestPart then
+            local targetCFrame = CFrame.new(Camera.CFrame.Position, closestPart.Position)
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 0.25) -- Change 0.25 to make it faster/slower
+        end
     end
 end)
 
-Library:Notify("A Quiet Place Hub loaded successfully!", 5)
+
