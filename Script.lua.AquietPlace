@@ -48,7 +48,7 @@ local Window = Library:CreateWindow({
     ShowCustomCursor = false
 })
 
--- Robust Top-Right Header Image Injector
+-- Robust Top-Right Header Image Injector (Preserved exactly)
 task.spawn(function()
     task.wait(0.8)
     pcall(function()
@@ -63,9 +63,9 @@ task.spawn(function()
                                 img.Name = "CustomHeaderIconRight"
                                 img.Image = "rbxassetid://92004178686058"
                                 img.BackgroundTransparency = 1
-                                img.Size = UDim2.new(0, 38, 0, 38) -- Bigger size
+                                img.Size = UDim2.new(0, 38, 0, 38)
                                 img.AnchorPoint = Vector2.new(1, 0.5)
-                                img.Position = UDim2.new(1, -10, 0.5, 0) -- Locked to top-right
+                                img.Position = UDim2.new(1, -10, 0.5, 0)
                                 img.Parent = topBar
                                 break
                             end
@@ -77,7 +77,7 @@ task.spawn(function()
     end)
 end)
 
--- Replace footer with a bigger :3 text
+-- Replace footer with a bigger :3 text (Preserved exactly)
 task.spawn(function()
     while task.wait(0.5) do
         pcall(function()
@@ -126,7 +126,7 @@ CombatGroup:AddSlider("FOVSize", { Text = "Aimbot FOV Size", Default = 200, Min 
 ---------------------------------------------------------
 ESPGroup:AddToggle("PlayerESP", { Text = "Player ESP (Green)", Default = false })
 ESPGroup:AddToggle("MonsterESP", { Text = "Monster ESP (Red)", Default = false })
-ESPGroup:AddSlider("MaxDist", { Text = "Max ESP Render Distance", Default = 5000, Min = 500, Max = 20000, Rounding = 0 })
+ESPGroup:AddSlider("MaxDist", { Text = "Max ESP Render Distance", Default = 500, Min = 100, Max = 5000, Rounding = 0 })
 
 LootGroup:AddToggle("ItemESP", { Text = "Enable Item / Loot ESP", Default = false })
 LootGroup:AddToggle("FoodESP", { Text = "Food & Consumables", Default = true })
@@ -223,7 +223,7 @@ ConfigGroup:AddButton({
 })
 
 ---------------------------------------------------------
--- ESP CORE & LOGIC FUNCTIONS
+-- ESP CORE & LAG-REDUCED CACHING SYSTEM
 ---------------------------------------------------------
 local CachedMonsters = {}
 local CachedItems = {}
@@ -256,7 +256,7 @@ local function applyESP(model, color, displayName, tagType)
         distance = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - targetPart.Position).Magnitude)
     end
 
-    local maxDist = Options.MaxDist and Options.MaxDist.Value or 5000
+    local maxDist = Options.MaxDist and Options.MaxDist.Value or 500
     if distance > maxDist then
         removeESP(model, tagType)
         return
@@ -317,30 +317,50 @@ local function getFilteredItem(obj)
     if not Toggles or not Toggles.ItemESP or not Toggles.ItemESP.Value then return false, nil end
 
     local nameLower = obj.Name:lower()
-    local promptText = ""
+
+    if nameLower:find("door") or nameLower:find("opener") or nameLower:find("leaf") or nameLower:find("leaves") 
+        or nameLower:find("trunk") or nameLower:find("tree") or nameLower:find("branch") or nameLower:find("meshpart") 
+        or nameLower:find("terrain") or nameLower:find("rock") or nameLower:find("stone") or nameLower:find("bush") 
+        or nameLower:find("grass") or nameLower:find("flower") or nameLower:find("wood") or nameLower:find("prop") then
+        return false, nil
+    end
+
     local prompt = obj:FindFirstChildOfClass("ProximityPrompt") or obj:FindFirstChildWhichIsA("ProximityPrompt", true)
-    if prompt then promptText = (prompt.ObjectText .. " " .. prompt.ActionText):lower() end
-    local checkStr = nameLower .. " " .. promptText
+    if not prompt and not obj:IsA("Tool") then 
+        return false, nil 
+    end
 
-    if checkStr:find("battery") or checkStr:find("cell") then return true, "🔋 Battery" end
-    if checkStr:find("flare") or checkStr:find("flaregun") then return true, "🚨 Flare Gun" end
-    if checkStr:find("flashlight") or checkStr:find("torch") then return true, "🔦 Flashlight" end
-    if checkStr:find("oxygen") or checkStr:find("inhaler") then return true, "💨 Oxygen" end
-    if checkStr:find("gas") or checkStr:find("fuel") then return true, "⛽ Gas Can" end
-    if checkStr:find("fuse") then return true, "🔌 Fuse" end
-    if checkStr:find("key") or checkStr:find("card") then return true, "🔑 Key / Card" end
+    local promptText = ""
+    if prompt then 
+        promptText = prompt.ObjectText ~= "" and prompt.ObjectText or prompt.ActionText 
+    end
 
-    if Toggles.FoodESP.Value and (checkStr:find("food") or checkStr:find("apple") or checkStr:find("snack") or checkStr:find("meat") or checkStr:find("water")) then return true, "Food" end
-    if Toggles.MedicalESP.Value and (checkStr:find("med") or checkStr:find("bandage") or checkStr:find("health") or checkStr:find("kit")) then return true, "Medical" end
-    if Toggles.WeaponESP.Value and (checkStr:find("gun") or checkStr:find("rifle") or checkStr:find("sniper") or checkStr:find("ammo") or checkStr:find("pistol") or obj:IsA("Tool")) then return true, "🔫 Weapon" end
-    if Toggles.ObjectiveESP.Value and (checkStr:find("part") or checkStr:find("gear") or checkStr:find("valve") or checkStr:find("code")) then return true, "Objective" end
-    if Toggles.NoiseESP.Value and (checkStr:find("radio") or checkStr:find("noise") or checkStr:find("bottle") or checkStr:find("alarm")) then return true, "Noise" end
+    local combinedCheck = (nameLower .. " " .. promptText):lower()
+    if combinedCheck:find("door") or combinedCheck:find("opener") then
+        return false, nil
+    end
+
+    local cleanName = promptText ~= "" and promptText or obj.Name
+
+    if combinedCheck:find("battery") or combinedCheck:find("cell") or combinedCheck:find("flare") or combinedCheck:find("flashlight") or combinedCheck:find("oxygen") or combinedCheck:find("gas") or combinedCheck:find("fuel") or combinedCheck:find("fuse") or combinedCheck:find("key") or combinedCheck:find("card") then
+        return true, cleanName
+    end
+
+    if Toggles.FoodESP.Value and (combinedCheck:find("food") or combinedCheck:find("apple") or combinedCheck:find("snack") or combinedCheck:find("meat") or combinedCheck:find("water")) then return true, cleanName end
+    if Toggles.MedicalESP.Value and (combinedCheck:find("med") or combinedCheck:find("bandage") or combinedCheck:find("health") or combinedCheck:find("kit")) then return true, cleanName end
+    if Toggles.WeaponESP.Value and (combinedCheck:find("gun") or combinedCheck:find("rifle") or combinedCheck:find("sniper") or combinedCheck:find("ammo") or combinedCheck:find("pistol") or obj:IsA("Tool")) then return true, cleanName end
+    if Toggles.ObjectiveESP.Value and (combinedCheck:find("part") or combinedCheck:find("gear") or combinedCheck:find("valve") or combinedCheck:find("code")) then return true, cleanName end
+    if Toggles.NoiseESP.Value and (combinedCheck:find("radio") or combinedCheck:find("noise") or combinedCheck:find("bottle") or combinedCheck:find("alarm")) then return true, cleanName end
+
+    if prompt then
+        return true, cleanName
+    end
 
     return false, nil
 end
 
 ---------------------------------------------------------
--- LOOPS & RUNSERVICE
+-- OPTIMIZED BACKGROUND LOOPS (LAG REDUCTION)
 ---------------------------------------------------------
 Workspace.DescendantAdded:Connect(function(obj)
     if Toggles and Toggles.InstantInteract and Toggles.InstantInteract.Value and obj:IsA("ProximityPrompt") then
@@ -350,7 +370,7 @@ Workspace.DescendantAdded:Connect(function(obj)
 end)
 
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(1.2) do
         if Toggles and Toggles.InstantInteract and Toggles.InstantInteract.Value then
             for _, prompt in ipairs(Workspace:GetDescendants()) do
                 if prompt:IsA("ProximityPrompt") then
@@ -361,7 +381,7 @@ task.spawn(function()
         end
 
         local tempMonsters, tempItems = {}, {}
-        if Toggles and Toggles.MonsterESP and Toggles.ItemESP then
+        if Toggles and (Toggles.MonsterESP.Value or Toggles.ItemESP.Value or Toggles.MonsterAimbot.Value) then
             for _, obj in ipairs(Workspace:GetDescendants()) do
                 if Toggles.MonsterESP.Value or Toggles.MonsterAimbot.Value then
                     if isMonster(obj) then tempMonsters[obj] = true end
