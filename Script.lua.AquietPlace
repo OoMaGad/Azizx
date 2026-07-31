@@ -433,7 +433,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    if Toggles.MonsterAimbot.Value or Tlogoes and Toggles.PlayerAimbot.Value then
+    if Toggles.MonsterAimbot.Value or Toggles.PlayerAimbot.Value then
         local closestPart = nil
         local fov = Options.FOVSize.Value or 200
         local shortestDistance = fov
@@ -465,5 +465,4 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-Library:Notify("Delta Mobile interface loaded!", 5)
-
+Library:Notify("A Quiet Place Hub loaded successfully!", 5)
