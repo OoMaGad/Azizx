@@ -40,7 +40,7 @@ end
 -- WINDOW CREATION
 ---------------------------------------------------------
 local Window = Library:CreateWindow({
-    Title = "Kazu Hub", 
+    Title = "A Quiet Place | Kazu Hub", 
     Center = true,
     AutoShow = true,
     TabPadding = 8,
@@ -433,7 +433,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    if Toggles.MonsterAimbot.Value or Toggles.PlayerAimbot.Value then
+    if Toggles.MonsterAimbot.Value or Tlogoes and Toggles.PlayerAimbot.Value then
         local closestPart = nil
         local fov = Options.FOVSize.Value or 200
         local shortestDistance = fov
@@ -466,3 +466,4 @@ RunService.RenderStepped:Connect(function()
 end)
 
 Library:Notify("Delta Mobile interface loaded!", 5)
+
