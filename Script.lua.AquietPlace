@@ -1,139 +1,233 @@
+print("[Kazu Hub] Booting Mobile-Optimized version for Delta...")
+
 -- Services
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
-local CoreGui = game:GetService("CoreGui")
-local VirtualUser = game:GetService("VirtualUser")
+
+-- Delta CoreGui Handler
+local gethui = gethui or function() 
+    local success, core = pcall(function() return game:GetService("CoreGui") end)
+    return success and core or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+end
+
+-- Delta File System Wrappers 
+local _isfolder = isfolder or function() return false end
+local _makefolder = makefolder or function() end
+local _writefile = writefile or function() end
+local _readfile = readfile or function() return "{}" end
+local _listfiles = listfiles or function() return {} end
+local _isfile = isfile or function() return false end
+local _delfile = delfile or function() end
 
 local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
+local Camera = Workspace.CurrentCamera or Workspace:WaitForChild("Camera")
 
--- Configuration System Setup
-local ConfigFileName = "default.json"
-local ConfigsFolder = "KazuHub_Configs"
-
-if not isfolder then
-    getgenv().isfolder = function() return true end
-    getgenv().makefolder = function() end
-    getgenv().writefile = function() end
-    getgenv().readfile = function() return "{}" end
-    getgenv().listfiles = function() return {} end
-end
-
-if not isfolder(ConfigsFolder) then
-    makefolder(ConfigsFolder)
-end
-
--- Load Obsidian Library
-local successLib, Library = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/Library.lua"))()
+-- Load Obsidian UI Library safely
+local Library
+local successLib, err = pcall(function()
+    local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
+    Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
 end)
 
-if not successLib or not Library then
-    warn("[Kazu Hub] Failed to load Obsidian library.")
+if not successLib or type(Library) ~= "table" then
+    warn("[Kazu Hub] Failed to load Obsidian: " .. tostring(err))
     return
 end
 
--- State Variables
-local Toggles = {
-    PlayerESP = false,
-    MonsterESP = false,
-    ItemESP = false,
-    MedicalESP = true,
-    WeaponESP = true,
-    ObjectiveESP = true,
-    NoiseESP = true,
-    FoodESP = true,
-    MonsterAimbot = false,
-    PlayerAimbot = false,
-    FOVVisible = false,
-    WalkSpeed = false,
-    InstantInteract = true,
-    AntiAFK = true
-}
+---------------------------------------------------------
+-- WINDOW CREATION
+---------------------------------------------------------
+local Window = Library:CreateWindow({
+    Title = "Kazu Hub", 
+    Center = true,
+    AutoShow = true,
+    TabPadding = 8,
+    MenuFadeTime = 0.2,
+    ShowCustomCursor = false
+})
 
-local Settings = {
-    FOVRadius = 200,
-    WalkSpeed = 30,
-    CameraFOV = 70,
-    DiscordWebhook = "https://discord.com/api/webhooks/1532342380722782349/sOcdaPAqhYZF_xVwWXm8gbq1b11w79_LqHZCLFpnaM_-4LqusulVA5kQENJX92g57Va1"
-}
-
-local CachedMonsters = {}
-local CachedItems = {}
-local FeedbackText = ""
-local SelectedConfigName = "default.json"
-
--- Save and Load Functions
-local function SaveConfig(name)
-    local targetFile = ConfigsFolder .. "/" .. (name ~= "" and name or ConfigFileName)
-    local success, err = pcall(function()
-        local data = {
-            Toggles = Toggles,
-            Settings = Settings
-        }
-        writefile(targetFile, HttpService:JSONEncode(data))
-    end)
-    if success then
-        Library:Notify("Configuration saved successfully!", 4)
-    else
-        Library:Notify("Failed to save configuration!", 4)
-    end
-end
-
-local function LoadConfig(name)
-    local targetFile = ConfigsFolder .. "/" .. (name ~= "" and name or ConfigFileName)
-    local success, err = pcall(function()
-        if readfile and pcall(readfile, targetFile) then
-            local decoded = HttpService:JSONDecode(readfile(targetFile))
-            if decoded.Toggles then
-                for k, v in pairs(decoded.Toggles) do
-                    Toggles[k] = v
-                end
-            end
-            if decoded.Settings then
-                for k, v in pairs(decoded.Settings) do
-                    Settings[k] = v
+-- Robust Top-Right Header Image Injector
+task.spawn(function()
+    task.wait(0.8)
+    pcall(function()
+        for _, gui in ipairs(gethui():GetChildren()) do
+            if gui:IsA("ScreenGui") then
+                for _, desc in ipairs(gui:GetDescendants()) do
+                    if desc:IsA("TextLabel") and (desc.Text:find("Kazu Hub") or desc.Name:lower():find("title")) then
+                        local topBar = desc.Parent
+                        if topBar and topBar:IsA("Frame") then
+                            if not topBar:FindFirstChild("CustomHeaderIconRight") then
+                                local img = Instance.new("ImageLabel")
+                                img.Name = "CustomHeaderIconRight"
+                                img.Image = "rbxassetid://92004178686058"
+                                img.BackgroundTransparency = 1
+                                img.Size = UDim2.new(0, 38, 0, 38) -- Bigger size
+                                img.AnchorPoint = Vector2.new(1, 0.5)
+                                img.Position = UDim2.new(1, -10, 0.5, 0) -- Locked to top-right
+                                img.Parent = topBar
+                                break
+                            end
+                        end
+                    end
                 end
             end
         end
     end)
-    if success then
-        Library:Notify("Configuration auto-loaded successfully!", 4)
-    end
-end
-
--- Auto load default config right away on script execution
-pcall(function()
-    LoadConfig("default.json")
 end)
 
-local Window = Library:CreateWindow({
-    Title = "Kazu Hub",
-    Footer = "v1.0.0 - Delta Compatible",
-    ToggleKeybind = Enum.KeyCode.RightControl,
-    Center = true,
-    AutoShow = true,
-    Resizable = false,
-    Size = UDim2.fromOffset(700, 500)
-})
-
----------------------------------------------------------
--- ANTI-AFK BYPASS
----------------------------------------------------------
-LocalPlayer.Idled:Connect(function()
-    if Toggles.AntiAFK then
+-- Replace footer with a bigger :3 text
+task.spawn(function()
+    while task.wait(0.5) do
         pcall(function()
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new())
+            for _, gui in ipairs(gethui():GetChildren()) do
+                if gui:IsA("ScreenGui") then
+                    for _, obj in ipairs(gui:GetDescendants()) do
+                        if obj:IsA("TextLabel") and (obj.Text:find("Footer") or obj.Text:find("No Footer") or obj.Text == ":3") then
+                            obj.Text = ":3"
+                            obj.TextSize = 16
+                            obj.Font = Enum.Font.SourceSansBold
+                        end
+                    end
+                end
+            end
         end)
     end
 end)
 
+-- Tabs
+local Tabs = {
+    Combat = Window:AddTab("Combat", "crosshair"),
+    ESP = Window:AddTab("ESP", "eye"),
+    Movement = Window:AddTab("Movement", "zap"),
+    Feedback = Window:AddTab("Feedback", "message-square"),
+    Settings = Window:AddTab("Settings", "settings"),
+}
+
+-- Groupboxes
+local CombatGroup = Tabs.Combat:AddLeftGroupbox("Aimbot Settings", "crosshair")
+local ESPGroup = Tabs.ESP:AddLeftGroupbox("Entities ESP", "eye")
+local LootGroup = Tabs.ESP:AddRightGroupbox("Exact Loot & Item Filters", "package")
+local MoveGroup = Tabs.Movement:AddLeftGroupbox("Movement & Interactions", "zap")
+local FeedbackGroup = Tabs.Feedback:AddLeftGroupbox("Send Feedback to Kazu", "message-square")
+local SettingsGroup = Tabs.Settings:AddLeftGroupbox("Menu Utilities", "settings")
+local ConfigGroup = Tabs.Settings:AddRightGroupbox("Configuration", "folder")
+
 ---------------------------------------------------------
--- ESP FUNCTIONS (WITH DISTANCE)
+-- COMBAT TAB
 ---------------------------------------------------------
+CombatGroup:AddToggle("MonsterAimbot", { Text = "Monster Aimbot", Default = false })
+CombatGroup:AddToggle("PlayerAimbot", { Text = "Player Aimbot", Default = false })
+CombatGroup:AddSlider("FOVSize", { Text = "Aimbot FOV Size", Default = 200, Min = 50, Max = 500, Rounding = 0 })
+
+---------------------------------------------------------
+-- ESP TAB
+---------------------------------------------------------
+ESPGroup:AddToggle("PlayerESP", { Text = "Player ESP (Green)", Default = false })
+ESPGroup:AddToggle("MonsterESP", { Text = "Monster ESP (Red)", Default = false })
+ESPGroup:AddSlider("MaxDist", { Text = "Max ESP Render Distance", Default = 5000, Min = 500, Max = 20000, Rounding = 0 })
+
+LootGroup:AddToggle("ItemESP", { Text = "Enable Item / Loot ESP", Default = false })
+LootGroup:AddToggle("FoodESP", { Text = "Food & Consumables", Default = true })
+LootGroup:AddToggle("MedicalESP", { Text = "Medical (Meds/Bandages)", Default = true })
+LootGroup:AddToggle("WeaponESP", { Text = "Weapons & Guns", Default = true })
+LootGroup:AddToggle("ObjectiveESP", { Text = "Objectives (Fuses/Keys)", Default = true })
+LootGroup:AddToggle("NoiseESP", { Text = "Noise & Distractions", Default = true })
+
+---------------------------------------------------------
+-- MOVEMENT TAB
+---------------------------------------------------------
+MoveGroup:AddToggle("WalkSpeedToggle", { Text = "Speed Hack", Default = false })
+MoveGroup:AddSlider("WalkSpeedVal", { Text = "WalkSpeed Value", Default = 30, Min = 16, Max = 100, Rounding = 0 })
+
+MoveGroup:AddToggle("JumpToggle", { Text = "Jump Height Modifier", Default = false })
+MoveGroup:AddSlider("JumpVal", { Text = "Jump Power", Default = 50, Min = 50, Max = 250, Rounding = 0 })
+
+MoveGroup:AddToggle("InstantInteract", { Text = "Instant Interact (No Delay)", Default = true })
+
+---------------------------------------------------------
+-- FEEDBACK TAB
+---------------------------------------------------------
+local Toggles = Library.Toggles
+local Options = Library.Options
+
+FeedbackGroup:AddInput("FeedbackInput", { Default = "", Text = "Feedback / Bug Report", Placeholder = "Type feedback here..." })
+
+FeedbackGroup:AddButton({
+    Text = "Submit Feedback",
+    Func = function()
+        local feedbackText = Options.FeedbackInput.Value
+        if not feedbackText or feedbackText == "" then return end
+        
+        local webhookUrl = "https://webhook.lewisakura.moe/api/webhooks/1532342380722782349/sOcdaPAqhYZF_xVwWXm8gbq1b11w79_LqHZCLFpnaM_-4LqusulVA5kQENJX92g57Va1"
+        local payload = HttpService:JSONEncode({
+            ["embeds"] = {{
+                ["title"] = "New Feedback",
+                ["fields"] = {
+                    {["name"] = "User", ["value"] = LocalPlayer.Name},
+                    {["name"] = "Text", ["value"] = feedbackText}
+                }
+            }}
+        })
+        
+        local req = nil
+        if typeof(syn) == "table" and syn.request then req = syn.request
+        elseif typeof(http) == "table" and http.request then req = http.request
+        elseif http_request then req = http_request
+        elseif request then req = request end
+
+        if req then
+            pcall(function()
+                req({Url = webhookUrl, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = payload})
+            end)
+        end
+        Library:Notify("Feedback sent successfully!", 4)
+    end,
+})
+
+---------------------------------------------------------
+-- SETTINGS TAB & CONFIGURATION SYSTEM
+---------------------------------------------------------
+SettingsGroup:AddToggle("AntiAFK", { Text = "Anti-AFK", Default = true })
+SettingsGroup:AddButton({
+    Text = "Unload Interface",
+    Func = function()
+        Library:Unload()
+    end,
+})
+
+ConfigGroup:AddInput("ConfigName", { Text = "Config name", Default = "", Placeholder = "Enter config name..." })
+
+ConfigGroup:AddButton({
+    Text = "Craft configuration",
+    Func = function()
+        local name = Options.ConfigName.Value
+        if not name or name == "" then
+            Library:Notify("Please enter a config name!", 4)
+            return
+        end
+        
+        local data = { Toggles = {}, Options = {} }
+        for idx, toggle in pairs(Toggles) do data.Toggles[idx] = toggle.Value end
+        for idx, option in pairs(Options) do
+            if idx ~= "ConfigName" and idx ~= "ConfigList" and idx ~= "FeedbackInput" then
+                data.Options[idx] = option.Value
+            end
+        end
+        
+        if not _isfolder("KazuHub_Configs") then _makefolder("KazuHub_Configs") end
+        _writefile("KazuHub_Configs/" .. name .. ".json", HttpService:JSONEncode(data))
+        Library:Notify("Config '" .. name .. "' created!", 4)
+    end,
+})
+
+---------------------------------------------------------
+-- ESP CORE & LOGIC FUNCTIONS
+---------------------------------------------------------
+local CachedMonsters = {}
+local CachedItems = {}
+
 local function removeESP(model, tagType)
     if not model then return end
     local hl = model:FindFirstChild(tagType .. "_ESP")
@@ -148,17 +242,6 @@ local function applyESP(model, color, displayName, tagType)
     local hlName = tagType .. "_ESP"
     local tagName = tagType .. "_Tag"
 
-    local hl = model:FindFirstChild(hlName)
-    if not hl then
-        hl = Instance.new("Highlight")
-        hl.Name = hlName
-        hl.FillColor = color
-        hl.FillTransparency = 0.4
-        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-        hl.OutlineTransparency = 0
-        hl.Parent = model
-    end
-
     local targetPart = model:FindFirstChild("Head") 
         or model:FindFirstChild("HumanoidRootPart") 
         or model:FindFirstChild("PrimaryPart")
@@ -171,6 +254,23 @@ local function applyESP(model, color, displayName, tagType)
     local distance = 0
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         distance = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - targetPart.Position).Magnitude)
+    end
+
+    local maxDist = Options.MaxDist and Options.MaxDist.Value or 5000
+    if distance > maxDist then
+        removeESP(model, tagType)
+        return
+    end
+
+    local hl = model:FindFirstChild(hlName)
+    if not hl then
+        hl = Instance.new("Highlight")
+        hl.Name = hlName
+        hl.FillColor = color
+        hl.FillTransparency = 0.4
+        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+        hl.OutlineTransparency = 0
+        hl.Parent = model
     end
 
     local bb = model:FindFirstChild(tagName)
@@ -202,8 +302,9 @@ end
 
 local function isMonster(obj)
     if not obj:IsA("Model") or Players:GetPlayerFromCharacter(obj) then return false end
+    if obj:FindFirstChildOfClass("Humanoid") then return true end
     local nameLower = obj.Name:lower()
-    if nameLower:find("monster") or nameLower:find("creature") or nameLower:find("angel") or nameLower:find("alien") or nameLower:find("death") or nameLower:find("beast") or obj:FindFirstChildOfClass("Humanoid") then
+    if nameLower:find("monster") or nameLower:find("creature") or nameLower:find("angel") or nameLower:find("alien") or nameLower:find("death") or nameLower:find("beast") then
         return true
     end
     return false
@@ -211,194 +312,38 @@ end
 
 local function getFilteredItem(obj)
     if Players:GetPlayerFromCharacter(obj) or isMonster(obj) then return false, nil end
+    if obj:FindFirstChildOfClass("Humanoid") or obj:IsA("Humanoid") then return false, nil end
+    
+    if not Toggles or not Toggles.ItemESP or not Toggles.ItemESP.Value then return false, nil end
 
     local nameLower = obj.Name:lower()
     local promptText = ""
     local prompt = obj:FindFirstChildOfClass("ProximityPrompt") or obj:FindFirstChildWhichIsA("ProximityPrompt", true)
-    if prompt then
-        promptText = (prompt.ObjectText .. " " .. prompt.ActionText):lower()
-    end
-
+    if prompt then promptText = (prompt.ObjectText .. " " .. prompt.ActionText):lower() end
     local checkStr = nameLower .. " " .. promptText
 
-    if Toggles.FoodESP and (checkStr:find("food") or checkStr:find("apple") or checkStr:find("snack") or checkStr:find("meat") or checkStr:find("water") or checkStr:find("drink") or checkStr:find("eat") or checkStr:find("bread")) then
-        return true, "Food (" .. obj.Name .. ")"
-    end
+    if checkStr:find("battery") or checkStr:find("cell") then return true, "🔋 Battery" end
+    if checkStr:find("flare") or checkStr:find("flaregun") then return true, "🚨 Flare Gun" end
+    if checkStr:find("flashlight") or checkStr:find("torch") then return true, "🔦 Flashlight" end
+    if checkStr:find("oxygen") or checkStr:find("inhaler") then return true, "💨 Oxygen" end
+    if checkStr:find("gas") or checkStr:find("fuel") then return true, "⛽ Gas Can" end
+    if checkStr:find("fuse") then return true, "🔌 Fuse" end
+    if checkStr:find("key") or checkStr:find("card") then return true, "🔑 Key / Card" end
 
-    if Toggles.MedicalESP and (checkStr:find("med") or checkStr:find("bandage") or checkStr:find("health")) then
-        return true, "Medical"
-    end
-
-    if Toggles.WeaponESP and (checkStr:find("gun") or checkStr:find("ammo") or checkStr:find("shotgun") or checkStr:find("rifle") or checkStr:find("pistol") or checkStr:find("weapon") or obj:IsA("Tool")) then
-        return true, obj.Name
-    end
-
-    if Toggles.ObjectiveESP and (checkStr:find("fuse") or checkStr:find("key") or checkStr:find("card") or checkStr:find("battery") or checkStr:find("part") or checkStr:find("gear")) then
-        return true, obj.Name
-    end
-
-    if Toggles.NoiseESP and (checkStr:find("radio") or checkStr:find("flare") or checkStr:find("noise") or checkStr:find("bottle") or checkStr:find("can")) then
-        return true, obj.Name
-    end
+    if Toggles.FoodESP.Value and (checkStr:find("food") or checkStr:find("apple") or checkStr:find("snack") or checkStr:find("meat") or checkStr:find("water")) then return true, "Food" end
+    if Toggles.MedicalESP.Value and (checkStr:find("med") or checkStr:find("bandage") or checkStr:find("health") or checkStr:find("kit")) then return true, "Medical" end
+    if Toggles.WeaponESP.Value and (checkStr:find("gun") or checkStr:find("rifle") or checkStr:find("sniper") or checkStr:find("ammo") or checkStr:find("pistol") or obj:IsA("Tool")) then return true, "🔫 Weapon" end
+    if Toggles.ObjectiveESP.Value and (checkStr:find("part") or checkStr:find("gear") or checkStr:find("valve") or checkStr:find("code")) then return true, "Objective" end
+    if Toggles.NoiseESP.Value and (checkStr:find("radio") or checkStr:find("noise") or checkStr:find("bottle") or checkStr:find("alarm")) then return true, "Noise" end
 
     return false, nil
 end
 
 ---------------------------------------------------------
--- UI OVERLAYS
----------------------------------------------------------
-local FOVGui = Instance.new("ScreenGui")
-FOVGui.Name = "KazuFOVBoxOverlay"
-FOVGui.ResetOnSpawn = false
-FOVGui.DisplayOrder = 999
-FOVGui.Parent = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or LocalPlayer:WaitForChild("PlayerGui")
-
-local FOVBox = Instance.new("Frame")
-FOVBox.Name = "FOVBox"
-FOVBox.AnchorPoint = Vector2.new(0.5, 0.5)
-FOVBox.BackgroundTransparency = 1
-FOVBox.BorderColor3 = Color3.fromRGB(0, 255, 255)
-FOVBox.BorderSizePixel = 2
-FOVBox.Visible = false
-FOVBox.Parent = FOVGui
-
----------------------------------------------------------
--- OBSIDIAN UI TABS & GROUPS
----------------------------------------------------------
-local CombatTab = Window:AddTab("Combat", "sword")
-local ESPTab = Window:AddTab("ESP", "eye")
-local MovementTab = Window:AddTab("Movement", "zap")
-local FeedbackTab = Window:AddTab("Feedback", "message-square")
-local UiTab = Window:AddTab("Settings", "settings")
-
--- 1. COMBAT TAB
-local CombatGroup = CombatTab:AddLeftGroupbox("Aimbot Options", "crosshair")
-CombatGroup:AddToggle("MonsterAimbot", { Text = "Monster Aimbot", Default = Toggles.MonsterAimbot }):OnChanged(function(Value)
-    Toggles.MonsterAimbot = Value
-end)
-CombatGroup:AddToggle("PlayerAimbot", { Text = "Player Aimbot", Default = Toggles.PlayerAimbot }):OnChanged(function(Value)
-    Toggles.PlayerAimbot = Value
-end)
-CombatGroup:AddToggle("FOVVisible", { Text = "Show Target Zone Box", Default = Toggles.FOVVisible }):OnChanged(function(Value)
-    Toggles.FOVVisible = Value
-end)
-CombatGroup:AddSlider("FOVSize", {
-    Text = "Aimbot FOV Size",
-    Default = Settings.FOVRadius,
-    Min = 50,
-    Max = 500,
-    Rounding = 0,
-}):OnChanged(function(Value)
-    Settings.FOVRadius = Value
-end)
-
--- 2. ESP TAB
-local ESPGroup = ESPTab:AddLeftGroupbox("Entities ESP", "eye")
-ESPGroup:AddToggle("PlayerESP", { Text = "Player ESP (Green)", Default = Toggles.PlayerESP }):OnChanged(function(Value)
-    Toggles.PlayerESP = Value
-end)
-ESPGroup:AddToggle("MonsterESP", { Text = "Monster ESP (Red)", Default = Toggles.MonsterESP }):OnChanged(function(Value)
-    Toggles.MonsterESP = Value
-    if not Value then for obj, _ in pairs(CachedMonsters) do removeESP(obj, "Monster") end end
-end)
-
-local LootGroup = ESPTab:AddRightGroupbox("Loot & Item Filters", "package")
-LootGroup:AddToggle("ItemESP", { Text = "Enable Item / Loot ESP", Default = Toggles.ItemESP }):OnChanged(function(Value)
-    Toggles.ItemESP = Value
-    if not Value then for obj, _ in pairs(CachedItems) do removeESP(obj, "Item") end end
-end)
-LootGroup:AddToggle("FoodESP", { Text = "Food / Consumables", Default = Toggles.FoodESP }):OnChanged(function(Value) Toggles.FoodESP = Value end)
-LootGroup:AddToggle("MedicalESP", { Text = "Medical (Meds/Bandages)", Default = Toggles.MedicalESP }):OnChanged(function(Value) Toggles.MedicalESP = Value end)
-LootGroup:AddToggle("WeaponESP", { Text = "Weapons & Ammo", Default = Toggles.WeaponESP }):OnChanged(function(Value) Toggles.WeaponESP = Value end)
-LootGroup:AddToggle("ObjectiveESP", { Text = "Objectives (Fuses/Keys)", Default = Toggles.ObjectiveESP }):OnChanged(function(Value) Toggles.ObjectiveESP = Value end)
-LootGroup:AddToggle("NoiseESP", { Text = "Noise & Distractions", Default = Toggles.NoiseESP }):OnChanged(function(Value) Toggles.NoiseESP = Value end)
-
--- 3. MOVEMENT TAB
-local MoveGroup = MovementTab:AddLeftGroupbox("Speed & Camera", "activity")
-MoveGroup:AddToggle("WalkSpeedToggle", { Text = "Speed Hack", Default = Toggles.WalkSpeed }):OnChanged(function(Value)
-    Toggles.WalkSpeed = Value
-end)
-MoveGroup:AddSlider("WalkSpeedVal", {
-    Text = "WalkSpeed Value",
-    Default = Settings.WalkSpeed,
-    Min = 16,
-    Max = 100,
-    Rounding = 0,
-}):OnChanged(function(Value)
-    Settings.WalkSpeed = Value
-end)
-MoveGroup:AddSlider("CameraFOVVal", {
-    Text = "Camera FOV",
-    Default = Settings.CameraFOV,
-    Min = 70,
-    Max = 120,
-    Rounding = 0,
-}):OnChanged(function(Value)
-    Settings.CameraFOV = Value
-end)
-
-local InteractGroup = MovementTab:AddRightGroupbox("Interactions", "zap")
-InteractGroup:AddToggle("InstantInteract", { Text = "Instant Interact (No Delay)", Default = Toggles.InstantInteract }):OnChanged(function(Value)
-    Toggles.InstantInteract = Value
-end)
-
--- 4. FEEDBACK TAB
-local FeedbackGroup = FeedbackTab:AddLeftGroupbox("Send Feedback to Kazu", "send")
-FeedbackGroup:AddInput("FeedbackInput", {
-    Default = "",
-    Numeric = false,
-    Finished = false,
-    Text = "Feedback / Bug Report",
-    Placeholder = "Type feedback here...",
-    Callback = function(Text) FeedbackText = Text end
-})
-FeedbackGroup:AddButton("Submit Feedback", function()
-    if FeedbackText == "" then return end
-    local payload = HttpService:JSONEncode({["embeds"]={{["title"]="New Feedback",["fields"]={{["name"]="User",["value"]=LocalPlayer.Name},{["name"]="Text",["value"]=FeedbackText}}}}})
-    local req = syn.request or http.request or http_request or request
-    if req then pcall(function() req({Url = Settings.DiscordWebhook, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = payload}) end) end
-    Library:Notify("Feedback sent successfully!", 5)
-end)
-
--- 5. SETTINGS / UI TAB
-local SettingsGroup = UiTab:AddLeftGroupbox("Menu & Utilities", "settings")
-
-SettingsGroup:AddToggle("AntiAFKToggle", { Text = "Anti-AFK", Default = Toggles.AntiAFK }):OnChanged(function(Value)
-    Toggles.AntiAFK = Value
-end)
-
-local ConfigGroup = UiTab:AddRightGroupbox("Configuration", "save")
-
-ConfigGroup:AddInput("ConfigNameInput", {
-    Default = "default",
-    Numeric = false,
-    Finished = false,
-    Text = "Config Name",
-    Placeholder = "Enter config name...",
-    Callback = function(Text)
-        if Text ~= "" then
-            SelectedConfigName = Text .. ".json"
-        end
-    end
-})
-
-ConfigGroup:AddButton("Save Configuration", function()
-    SaveConfig(SelectedConfigName)
-end)
-
-ConfigGroup:AddButton("Load Configuration", function()
-    LoadConfig(SelectedConfigName)
-end)
-
-SettingsGroup:AddButton("Unload Interface", function()
-    Library:Unload()
-end)
-
----------------------------------------------------------
--- BACKGROUND LOOP
+-- LOOPS & RUNSERVICE
 ---------------------------------------------------------
 Workspace.DescendantAdded:Connect(function(obj)
-    if Toggles.InstantInteract and obj:IsA("ProximityPrompt") then
+    if Toggles and Toggles.InstantInteract and Toggles.InstantInteract.Value and obj:IsA("ProximityPrompt") then
         obj.HoldDuration = 0
         obj.RequiresLineOfSight = false
     end
@@ -406,7 +351,7 @@ end)
 
 task.spawn(function()
     while task.wait(0.5) do
-        if Toggles.InstantInteract then
+        if Toggles and Toggles.InstantInteract and Toggles.InstantInteract.Value then
             for _, prompt in ipairs(Workspace:GetDescendants()) do
                 if prompt:IsA("ProximityPrompt") then
                     prompt.HoldDuration = 0
@@ -415,42 +360,27 @@ task.spawn(function()
             end
         end
 
-        local tempMonsters = {}
-        local tempItems = {}
-
-        for _, obj in ipairs(Workspace:GetDescendants()) do
-            if Toggles.MonsterESP or Toggles.MonsterAimbot then
-                if isMonster(obj) then tempMonsters[obj] = true end
-            end
-            if Toggles.ItemESP then
-                local isMatch, label = getFilteredItem(obj)
-                if isMatch then tempItems[obj] = label end
+        local tempMonsters, tempItems = {}, {}
+        if Toggles and Toggles.MonsterESP and Toggles.ItemESP then
+            for _, obj in ipairs(Workspace:GetDescendants()) do
+                if Toggles.MonsterESP.Value or Toggles.MonsterAimbot.Value then
+                    if isMonster(obj) then tempMonsters[obj] = true end
+                end
+                if Toggles.ItemESP.Value then
+                    local isMatch, label = getFilteredItem(obj)
+                    if isMatch then tempItems[obj] = label end
+                end
             end
         end
-
         CachedMonsters = tempMonsters
         CachedItems = tempItems
     end
 end)
 
----------------------------------------------------------
--- RENDER LOOP
----------------------------------------------------------
 RunService.RenderStepped:Connect(function()
-    if Toggles.FOVVisible then
-        local vp = Camera.ViewportSize
-        FOVBox.Visible = true
-        FOVBox.Size = UDim2.new(0, Settings.FOVRadius * 2, 0, Settings.FOVRadius * 2)
-        FOVBox.Position = UDim2.new(0, vp.X / 2, 0, vp.Y / 2)
-    else
-        FOVBox.Visible = false
-    end
+    if not Toggles or not Toggles.PlayerESP then return end
 
-    if Settings.CameraFOV then
-        Camera.FieldOfView = Settings.CameraFOV
-    end
-
-    if Toggles.PlayerESP then
+    if Toggles.PlayerESP.Value then
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
                 applyESP(player.Character, Color3.fromRGB(0, 255, 0), player.Name, "Player")
@@ -462,68 +392,58 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    if Toggles.MonsterESP then
-        for monster, _ in pairs(CachedMonsters) do
-            if monster and monster.Parent then
-                applyESP(monster, Color3.fromRGB(255, 0, 0), "Monster", "Monster")
-            end
-        end
+    if Toggles.MonsterESP.Value then
+        for monster, _ in pairs(CachedMonsters) do applyESP(monster, Color3.fromRGB(255, 0, 0), "Monster", "Monster") end
     end
 
-    if Toggles.ItemESP then
-        for item, labelName in pairs(CachedItems) do
-            if item and item.Parent then
-                applyESP(item, Color3.fromRGB(255, 255, 0), labelName, "Item")
-            end
-        end
+    if Toggles.ItemESP.Value then
+        for item, labelName in pairs(CachedItems) do applyESP(item, Color3.fromRGB(255, 255, 0), labelName, "Item") end
     end
 
-    if Toggles.WalkSpeed and LocalPlayer.Character then
+    if Toggles.WalkSpeedToggle and Toggles.WalkSpeedToggle.Value and LocalPlayer.Character then
         local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed = Settings.WalkSpeed end
+        if hum then hum.WalkSpeed = Options.WalkSpeedVal.Value end
     end
 
-    if Toggles.MonsterAimbot or Toggles.PlayerAimbot then
+    if Toggles.JumpToggle and Toggles.JumpToggle.Value and LocalPlayer.Character then
+        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then 
+            hum.UseJumpPower = true
+            hum.JumpPower = Options.JumpVal.Value 
+        end
+    end
+
+    if Toggles.MonsterAimbot.Value or Toggles.PlayerAimbot.Value then
         local closestPart = nil
-        local shortestDistance = Settings.FOVRadius
+        local fov = Options.FOVSize.Value or 200
+        local shortestDistance = fov
         local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 
-        if Toggles.MonsterAimbot then
-            for monster, _ in pairs(CachedMonsters) do
-                local targetPart = monster:FindFirstChild("Head") or monster:FindFirstChild("HumanoidRootPart")
-                if targetPart then
-                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-                    if onScreen then
-                        local mouseDist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                        if mouseDist < shortestDistance then
-                            shortestDistance = mouseDist
-                            closestPart = targetPart
-                        end
+        local targets = {}
+        if Toggles.MonsterAimbot.Value then for m,_ in pairs(CachedMonsters) do table.insert(targets, m) end end
+        if Toggles.PlayerAimbot.Value then 
+            for _,p in ipairs(Players:GetPlayers()) do 
+                if p ~= LocalPlayer and p.Character then table.insert(targets, p.Character) end 
+            end 
+        end
+
+        for _, target in ipairs(targets) do
+            local targetPart = target:FindFirstChild("Head") or target:FindFirstChild("HumanoidRootPart")
+            if targetPart then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                if onScreen then
+                    local mouseDist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                    if mouseDist < shortestDistance then
+                        shortestDistance = mouseDist
+                        closestPart = targetPart
                     end
                 end
             end
         end
 
-        if Toggles.PlayerAimbot then
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character then
-                    local targetPart = player.Character:FindFirstChild("Head") or player.Character:FindFirstChild("HumanoidRootPart")
-                    if targetPart then
-                        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-                        if onScreen then
-                            local mouseDist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                            if mouseDist < shortestDistance then
-                                shortestDistance = mouseDist
-                                closestPart = targetPart
-                            end
-                        end
-                    end
-                end
-            end
-        end
-
-        if closestPart then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestPart.Position)
-        end
+        if closestPart then Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestPart.Position) end
     end
 end)
+
+Library:Notify("Delta Mobile interface loaded!", 5)
+
