@@ -1,6 +1,6 @@
 --[[
-    Title: ZanN Hub v10.2 (Anti-Anticheat Bypass Edition)
-    Updates: Removed fall damage completely, optimized speed hack to a safe non-teleport speed (50 WalkSpeed) for seamless anti-cheat bypass, and kept previous features.
+    Title: ZanN Hub v10.6 (Anti-Anticheat Bypass Edition)
+    Updates: Filtered out freezers, gas stations, shacks, cabins, and structures from item ESP; added grenade to weapons.
 ]]
 
 local Players = game:GetService("Players")
@@ -22,7 +22,7 @@ local Config = {
     Aimbot = false,
     CharacterGlow = false,
     SpeedHack = false,
-    WalkSpeed = 50, -- Lowered default for full anti-cheat bypass (prevents rubberbanding)
+    WalkSpeed = 50,
     JumpHack = false,
     JumpPower = 150,
     Filters = { Weapon = true, Ammo = true, Medical = true, Food = true, Battery = true, Other = true }
@@ -224,7 +224,7 @@ local function getItemCategory(name)
     name = string.lower(name)
     if string.find(name, "battery") or string.find(name, "cell") or string.find(name, "power") then
         return "Battery"
-    elseif string.find(name, "flare gun") or string.find(name, "gun") or string.find(name, "rifle") or string.find(name, "pistol") or string.find(name, "shotgun") or string.find(name, "smg") or string.find(name, "knife") or string.find(name, "sword") or string.find(name, "bat") or string.find(name, "melee") or string.find(name, "weapon") or string.find(name, "revolver") or string.find(name, "sniper") or string.find(name, "axe") or string.find(name, "machete") or string.find(name, "crowbar") or string.find(name, "pipe") or string.find(name, "hammer") or string.find(name, "club") then 
+    elseif string.find(name, "flare gun") or string.find(name, "gun") or string.find(name, "rifle") or string.find(name, "pistol") or string.find(name, "shotgun") or string.find(name, "smg") or string.find(name, "knife") or string.find(name, "sword") or string.find(name, "bat") or string.find(name, "melee") or string.find(name, "weapon") or string.find(name, "revolver") or string.find(name, "sniper") or string.find(name, "axe") or string.find(name, "machete") or string.find(name, "crowbar") or string.find(name, "pipe") or string.find(name, "hammer") or string.find(name, "club") or string.find(name, "grenade") then 
         return "Weapon"
     elseif string.find(name, "flare pack") or string.find(name, "ammo") or string.find(name, "bullet") or string.find(name, "mag") or string.find(name, "round") or string.find(name, "shell") or string.find(name, "box") or string.find(name, "pack") then 
         return "Ammo"
@@ -239,7 +239,7 @@ end
 
 local function isValidItemName(name)
     local low = string.lower(name)
-    if string.find(low, "door") or string.find(low, "opener") or string.find(low, "gate") or string.find(low, "lever") or string.find(low, "switch") or string.find(low, "button") or string.find(low, "drawer") or string.find(low, "chest") or string.find(low, "desk") or string.find(low, "house") or string.find(low, "home") or string.find(low, "building") or string.find(low, "cabinet") then
+    if string.find(low, "door") or string.find(low, "opener") or string.find(low, "gate") or string.find(low, "lever") or string.find(low, "switch") or string.find(low, "button") or string.find(low, "drawer") or string.find(low, "chest") or string.find(low, "desk") or string.find(low, "house") or string.find(low, "home") or string.find(low, "building") or string.find(low, "cabinet") or string.find(low, "cabin") or string.find(low, "shack") or string.find(low, "freezer") or string.find(low, "gasstation") then
         return false
     end
     return true
@@ -258,7 +258,6 @@ local function hookFallDamage()
     if not char then return end
     local hum = char:FindFirstChildOfClass("Humanoid")
     if hum then
-        -- Hook state changes to prevent fall damage application
         hum.StateChanged:Connect(function(_, newState)
             if newState == Enum.HumanoidStateType.FallingDown or newState == Enum.HumanoidStateType.Ragdoll then
                 hum:ChangeState(Enum.HumanoidStateType.GettingUp)
@@ -332,7 +331,6 @@ RunService.RenderStepped:Connect(function(dt)
             if Config.SpeedHack then
                 hum.WalkSpeed = Config.WalkSpeed
                 
-                -- Anti-cheat safe velocity injection to prevent rubberband snapbacks
                 local moveDir = hum.MoveDirection
                 if moveDir.Magnitude > 0 then
                     local currentVel = hrp.AssemblyLinearVelocity
