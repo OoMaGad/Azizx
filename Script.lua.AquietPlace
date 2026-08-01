@@ -1,6 +1,6 @@
 --[[
-    Title: ZanN Hub v10.6 (Anti-Anticheat Bypass Edition)
-    Updates: Filtered out freezers, gas stations, shacks, cabins, and structures from item ESP; added grenade to weapons.
+    Title: ZanN Hub v10.7 (Anti-Anticheat Bypass Edition)
+    Updates: Added Instant Interact feature, filtered out freezers/gas stations, and added grenade to weapons.
 ]]
 
 local Players = game:GetService("Players")
@@ -19,6 +19,7 @@ local Config = {
     PlayerESP = false,
     MonsterESP = false,
     ItemESP = false,
+    InstantInteract = false,
     Aimbot = false,
     CharacterGlow = false,
     SpeedHack = false,
@@ -47,7 +48,7 @@ MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 18, 24)
 MainFrame.BorderSizePixel = 0
 MainFrame.Position = UDim2.new(0.5, -120, 0.5, -180)
-MainFrame.Size = UDim2.new(0, 240, 0, 370)
+MainFrame.Size = UDim2.new(0, 240, 0, 395)
 MainFrame.Active = true
 
 local UICorner = Instance.new("UICorner")
@@ -74,7 +75,7 @@ ScrollContainer.Parent = MainFrame
 ScrollContainer.BackgroundTransparency = 1
 ScrollContainer.Position = UDim2.new(0, 8, 0, 40)
 ScrollContainer.Size = UDim2.new(1, -16, 1, -48)
-ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 520)
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 560)
 ScrollContainer.ScrollBarThickness = 3
 
 local UIListLayout = Instance.new("UIListLayout")
@@ -121,6 +122,7 @@ end
 createToggle("Player ESP", "PlayerESP", false)
 createToggle("Monster ESP", "MonsterESP", false)
 createToggle("Item Collector ESP", "ItemESP", false)
+createToggle("Instant Interact", "InstantInteract", false)
 createToggle("Aimbot [E]", "Aimbot", false)
 createToggle("Character Glow", "CharacterGlow", false)
 createToggle("Speed Hack", "SpeedHack", false)
@@ -272,6 +274,12 @@ LocalPlayer.CharacterAdded:Connect(function(char)
 end)
 hookFallDamage()
 
+Workspace.DescendantAdded:Connect(function(obj)
+    if obj:IsA("ProximityPrompt") and Config.InstantInteract then
+        obj.HoldDuration = 0
+    end
+end)
+
 RunService.RenderStepped:Connect(function(dt)
     scanTimer = scanTimer + dt
     if scanTimer >= 1.0 then
@@ -297,9 +305,13 @@ RunService.RenderStepped:Connect(function(dt)
             end
         end
 
-        -- Accurate Item Search
+        -- Accurate Item Search & Instant Interact Application
         for _, obj in ipairs(Workspace:GetDescendants()) do
             if obj:IsA("ProximityPrompt") then
+                if Config.InstantInteract then
+                    obj.HoldDuration = 0
+                end
+                
                 local itemParent = obj.Parent
                 while itemParent and itemParent ~= Workspace do
                     if itemParent:IsA("Model") then
