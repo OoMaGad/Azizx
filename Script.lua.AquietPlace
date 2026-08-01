@@ -1,6 +1,6 @@
 --[[
-    Title: ZanN Hub v10.7 (Anti-Anticheat Bypass Edition)
-    Updates: Added Instant Interact feature, filtered out freezers/gas stations, and added grenade to weapons.
+    Title: ZanN Hub v10.9 (Reliable UI Edition)
+    Updates: Streamlined safe UI construction, bulletproof environment checks, and clean design.
 ]]
 
 local Players = game:GetService("Players")
@@ -29,54 +29,83 @@ local Config = {
     Filters = { Weapon = true, Ammo = true, Medical = true, Food = true, Battery = true, Other = true }
 }
 
--- ScreenGui Setup
+-- ScreenGui Setup with Safe Parent Fallbacks
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ZanNHub"
-if syn and syn.protect_gui then
-    syn.protect_gui(ScreenGui)
-    ScreenGui.Parent = CoreGui
-elseif gethui then
-    ScreenGui.Parent = gethui()
-else
+ScreenGui.ResetOnSpawn = false
+
+local success = pcall(function()
+    if syn and syn.protect_gui then
+        syn.protect_gui(ScreenGui)
+        ScreenGui.Parent = CoreGui
+    elseif gethui then
+        ScreenGui.Parent = gethui()
+    else
+        ScreenGui.Parent = CoreGui
+    end
+end)
+
+if not success then
     ScreenGui.Parent = CoreGui
 end
 
--- UI Panel (Pink Theme)
+-- Main Window Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 18, 24)
+MainFrame.BackgroundColor3 = Color3.fromRGB(24, 18, 22)
 MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.5, -120, 0.5, -180)
-MainFrame.Size = UDim2.new(0, 240, 0, 395)
+MainFrame.Position = UDim2.new(0.5, -125, 0.5, -200)
+MainFrame.Size = UDim2.new(0, 250, 0, 410)
 MainFrame.Active = true
+MainFrame.Draggable = true
 
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 8)
 UICorner.Parent = MainFrame
 
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(190, 70, 120)
+UIStroke.Thickness = 1.5
+UIStroke.Parent = MainFrame
+
+-- Title Bar
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Parent = MainFrame
-TitleLabel.BackgroundColor3 = Color3.fromRGB(45, 25, 36)
+TitleLabel.BackgroundColor3 = Color3.fromRGB(40, 25, 33)
 TitleLabel.BorderSizePixel = 0
-TitleLabel.Size = UDim2.new(1, 0, 0, 32)
+TitleLabel.Size = UDim2.new(1, 0, 0, 36)
 TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.Text = "ZanN Hub [RightShift: UI]"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 180, 210)
-TitleLabel.TextSize = 11
+TitleLabel.Text = "  ZanN Hub v10.9"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 190, 220)
+TitleLabel.TextSize = 12
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 8)
 TitleCorner.Parent = TitleLabel
 
+local SubTitle = Instance.new("TextLabel")
+SubTitle.Parent = TitleLabel
+SubTitle.BackgroundTransparency = 1
+SubTitle.Position = UDim2.new(0, -10, 0, 0)
+SubTitle.Size = UDim2.new(1, -12, 1, 0)
+SubTitle.Font = Enum.Font.GothamMedium
+SubTitle.Text = "[RightShift]"
+SubTitle.TextColor3 = Color3.fromRGB(160, 110, 135)
+SubTitle.TextSize = 11
+SubTitle.TextXAlignment = Enum.TextXAlignment.Right
+
+-- Scrolling Container
 local ScrollContainer = Instance.new("ScrollingFrame")
 ScrollContainer.Parent = MainFrame
 ScrollContainer.BackgroundTransparency = 1
-ScrollContainer.Position = UDim2.new(0, 8, 0, 40)
-ScrollContainer.Size = UDim2.new(1, -16, 1, -48)
-ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 560)
+ScrollContainer.Position = UDim2.new(0, 8, 0, 44)
+ScrollContainer.Size = UDim2.new(1, -16, 1, -52)
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 620)
 ScrollContainer.ScrollBarThickness = 3
+ScrollContainer.ScrollBarImageColor3 = Color3.fromRGB(190, 70, 120)
 
 local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.Parent = ScrollContainer
@@ -85,20 +114,44 @@ UIListLayout.Padding = UDim.new(0, 6)
 
 local toggleButtons = {}
 
+local function createHeader(text)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, 0, 0, 20)
+    lbl.BackgroundTransparency = 1
+    lbl.Font = Enum.Font.GothamBold
+    lbl.Text = text
+    lbl.TextColor3 = Color3.fromRGB(190, 90, 140)
+    lbl.TextSize = 11
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = ScrollContainer
+end
+
 local function createToggle(name, configKey, isFilter)
     local default = isFilter and Config.Filters[configKey] or Config[configKey]
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, 0, 0, 28)
-    btn.BackgroundColor3 = default and Color3.fromRGB(180, 60, 110) or Color3.fromRGB(45, 25, 36)
+    btn.BackgroundColor3 = default and Color3.fromRGB(170, 50, 100) or Color3.fromRGB(38, 24, 31)
     btn.BorderSizePixel = 0
-    btn.Font = Enum.Font.GothamBold
-    btn.Text = name .. ": " .. (default and "ON" or "OFF")
-    btn.TextColor3 = Color3.fromRGB(255, 220, 235)
+    btn.Font = Enum.Font.GothamSemibold
+    btn.Text = "  " .. name
+    btn.TextColor3 = Color3.fromRGB(245, 225, 235)
     btn.TextSize = 11
+    btn.TextXAlignment = Enum.TextXAlignment.Left
     btn.Parent = ScrollContainer
     
+    local status = Instance.new("TextLabel")
+    status.Size = UDim2.new(0, 50, 1, 0)
+    status.Position = UDim2.new(1, -55, 0, 0)
+    status.BackgroundTransparency = 1
+    status.Font = Enum.Font.GothamBold
+    status.Text = default and "ON" or "OFF"
+    status.TextColor3 = default and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(130, 90, 110)
+    status.TextSize = 11
+    status.TextXAlignment = Enum.TextXAlignment.Right
+    status.Parent = btn
+
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 5)
+    corner.CornerRadius = UDim.new(0, 6)
     corner.Parent = btn
     
     local function updateState(newState)
@@ -107,8 +160,9 @@ local function createToggle(name, configKey, isFilter)
         else
             Config[configKey] = newState
         end
-        btn.BackgroundColor3 = newState and Color3.fromRGB(180, 60, 110) or Color3.fromRGB(45, 25, 36)
-        btn.Text = name .. ": " .. (newState and "ON" or "OFF")
+        btn.BackgroundColor3 = newState and Color3.fromRGB(170, 50, 100) or Color3.fromRGB(38, 24, 31)
+        status.Text = newState and "ON" or "OFF"
+        status.TextColor3 = newState and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(130, 90, 110)
     end
 
     btn.MouseButton1Click:Connect(function()
@@ -119,29 +173,39 @@ local function createToggle(name, configKey, isFilter)
     toggleButtons[configKey] = {button = btn, update = updateState}
 end
 
+createHeader("--- VISUALS ---")
 createToggle("Player ESP", "PlayerESP", false)
 createToggle("Monster ESP", "MonsterESP", false)
 createToggle("Items esp", "ItemESP", false)
-createToggle("Instant Interact", "InstantInteract", false)
-createToggle("Aimbot [E]", "Aimbot", false)
 createToggle("Character Glow", "CharacterGlow", false)
+
+createHeader("--- COMBAT & UTILITY ---")
+createToggle("Aimbot [E]", "Aimbot", false)
+createToggle("Instant Interact", "InstantInteract", false)
 createToggle("Speed Hack", "SpeedHack", false)
 createToggle("Jump Hack", "JumpHack", false)
-createToggle("Filter: Weapon", "Weapon", true)
-createToggle("Filter: Ammo", "Ammo", true)
-createToggle("Filter: Medical", "Medical", true)
-createToggle("Filter: Food", "Food", true)
-createToggle("Filter: Battery", "Battery", true)
-createToggle("Filter: Other", "Other", true)
 
--- Mobile Toggle Floating Button
+createHeader("--- ITEM FILTERS ---")
+createToggle("Weapon", "Weapon", true)
+createToggle("Ammo", "Ammo", true)
+createToggle("Medical", "Medical", true)
+createToggle("Food", "Food", true)
+createToggle("Battery", "Battery", true)
+createToggle("Other", "Other", true)
+
+-- Mobile Floating Toggle Button
 local MobileToggleBtn = Instance.new("ImageButton")
 MobileToggleBtn.Name = "MobileToggleButton"
 MobileToggleBtn.Parent = ScreenGui
-MobileToggleBtn.BackgroundColor3 = Color3.fromRGB(45, 25, 36)
+MobileToggleBtn.BackgroundColor3 = Color3.fromRGB(38, 24, 31)
 MobileToggleBtn.Position = UDim2.new(0, 20, 0.4, 0)
-MobileToggleBtn.Size = UDim2.new(0, 50, 0, 50)
+MobileToggleBtn.Size = UDim2.new(0, 45, 0, 45)
 MobileToggleBtn.Image = "rbxassetid://76007855155881"
+
+local MobileStroke = Instance.new("UIStroke")
+MobileStroke.Color = Color3.fromRGB(190, 70, 120)
+MobileStroke.Thickness = 1.5
+MobileStroke.Parent = MobileToggleBtn
 
 local MobileCorner = Instance.new("UICorner")
 MobileCorner.CornerRadius = UDim.new(1, 0)
@@ -149,25 +213,6 @@ MobileCorner.Parent = MobileToggleBtn
 
 MobileToggleBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
-end)
-
--- Make Mobile Toggle Button Draggable
-local mDragging, mDragStart, mStartPos
-MobileToggleBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        mDragging = true
-        mDragStart = input.Position
-        mStartPos = MobileToggleBtn.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then mDragging = false end
-        end)
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and mDragging then
-        local delta = input.Position - mDragStart
-        MobileToggleBtn.Position = UDim2.new(mStartPos.X.Scale, mStartPos.X.Offset + delta.X, mStartPos.Y.Scale, mStartPos.Y.Offset + delta.Y)
-    end
 end)
 
 -- Keyboard Controls
@@ -182,42 +227,24 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Dragging logic for Main Window
-local dragging, dragInput, dragStart, startPos
-MainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
-        end)
-    end
-end)
-MainFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
--- Drawing Pool Setup
+-- Drawing Pool Setup with Safety Checks
 local ESPCache = {}
 local function getDrawing(target)
+    if not Drawing or not Drawing.new then return nil end
     if not ESPCache[target] then
-        local txt = Drawing.new("Text")
-        txt.Visible = false
-        txt.Center = true
-        txt.Outline = true
-        txt.OutlineColor = Color3.fromRGB(0, 0, 0)
-        txt.Font = 1
-        txt.Size = 11
-        ESPCache[target] = txt
+        local successTxt, txt = pcall(function()
+            local t = Drawing.new("Text")
+            t.Visible = false
+            t.Center = true
+            t.Outline = true
+            t.OutlineColor = Color3.fromRGB(0, 0, 0)
+            t.Font = 1
+            t.Size = 11
+            return t
+        end)
+        if successTxt then
+            ESPCache[target] = txt
+        end
     end
     return ESPCache[target]
 end
@@ -250,11 +277,8 @@ end
 local scanTimer = 0
 local cachedEntities = {}
 local cachedItems = {}
-
--- Anti-Cheat Bypass Variables
 local isJumpingOrFalling = false
 
--- Complete Fall Damage Hook/Bypass
 local function hookFallDamage()
     local char = LocalPlayer.Character
     if not char then return end
@@ -287,7 +311,6 @@ RunService.RenderStepped:Connect(function(dt)
         cachedEntities = {}
         cachedItems = {}
         
-        -- Deep Monster & Player Search
         for _, obj in ipairs(Workspace:GetDescendants()) do
             if obj:IsA("Model") then
                 local hum = obj:FindFirstChildOfClass("Humanoid")
@@ -305,7 +328,6 @@ RunService.RenderStepped:Connect(function(dt)
             end
         end
 
-        -- Accurate Item Search & Instant Interact Application
         for _, obj in ipairs(Workspace:GetDescendants()) do
             if obj:IsA("ProximityPrompt") then
                 if Config.InstantInteract then
@@ -334,7 +356,6 @@ RunService.RenderStepped:Connect(function(dt)
     local shortestDist = math.huge
     local activeDrawings = {}
 
-    -- Handle Speed Hack, Safe Movement Interpolation, and Jump Hack
     local char = LocalPlayer.Character
     if char then
         local hum = char:FindFirstChildOfClass("Humanoid")
@@ -342,7 +363,6 @@ RunService.RenderStepped:Connect(function(dt)
         if hum and hrp then
             if Config.SpeedHack then
                 hum.WalkSpeed = Config.WalkSpeed
-                
                 local moveDir = hum.MoveDirection
                 if moveDir.Magnitude > 0 then
                     local currentVel = hrp.AssemblyLinearVelocity
@@ -370,7 +390,6 @@ RunService.RenderStepped:Connect(function(dt)
         end
     end
 
-    -- Render Players & Monsters
     for _, entity in ipairs(cachedEntities) do
         local model = entity.model
         local hrp = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChildWhichIsA("BasePart")
@@ -385,16 +404,18 @@ RunService.RenderStepped:Connect(function(dt)
 
                 if showPlr or showMon then
                     local txt = getDrawing(model)
-                    activeDrawings[model] = true
-                    txt.Visible = true
-                    txt.Position = Vector2.new(pos.X, pos.Y)
-                    
-                    if entity.type == "Player" then
-                        txt.Text = string.format("[Player] %s [%dm]", entity.name, math.floor(dist))
-                        txt.Color = Color3.fromRGB(80, 200, 255)
-                    else
-                        txt.Text = string.format("[Monster] %s [%dm]", entity.name, math.floor(dist))
-                        txt.Color = Color3.fromRGB(255, 50, 50)
+                    if txt then
+                        activeDrawings[model] = true
+                        txt.Visible = true
+                        txt.Position = Vector2.new(pos.X, pos.Y)
+                        
+                        if entity.type == "Player" then
+                            txt.Text = string.format("[Player] %s [%dm]", entity.name, math.floor(dist))
+                            txt.Color = Color3.fromRGB(80, 200, 255)
+                        else
+                            txt.Text = string.format("[Monster] %s [%dm]", entity.name, math.floor(dist))
+                            txt.Color = Color3.fromRGB(255, 50, 50)
+                        end
                     end
 
                     if Config.Aimbot and entity.type == "Monster" then
@@ -410,7 +431,6 @@ RunService.RenderStepped:Connect(function(dt)
         end
     end
 
-    -- Render Items ESP
     if Config.ItemESP then
         for _, item in ipairs(cachedItems) do
             if Config.Filters[item.cat] then
@@ -418,17 +438,18 @@ RunService.RenderStepped:Connect(function(dt)
                 if onScreen then
                     local dist = (Camera.CFrame.Position - item.part.Position).Magnitude
                     local txt = getDrawing(item.part)
-                    activeDrawings[item.part] = true
-                    txt.Visible = true
-                    txt.Position = Vector2.new(pos.X, pos.Y)
-                    txt.Text = string.format("[%s] %s [%dm]", item.cat, item.name, math.floor(dist))
-                    txt.Color = Color3.fromRGB(50, 255, 50)
+                    if txt then
+                        activeDrawings[item.part] = true
+                        txt.Visible = true
+                        txt.Position = Vector2.new(pos.X, pos.Y)
+                        txt.Text = string.format("[%s] %s [%dm]", item.cat, item.name, math.floor(dist))
+                        txt.Color = Color3.fromRGB(50, 255, 50)
+                    end
                 end
             end
         end
     end
 
-    -- Character Glow
     if Config.CharacterGlow then
         for _, entity in ipairs(cachedEntities) do
             local model = entity.model
@@ -469,14 +490,12 @@ RunService.RenderStepped:Connect(function(dt)
         end
     end
 
-    -- Cleanup hidden text instances
     for obj, txt in pairs(ESPCache) do
         if not activeDrawings[obj] then
             txt.Visible = false
         end
     end
 
-    -- Aimbot Execution
     if Config.Aimbot and closestTarget then
         Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, closestTarget.Position), 0.3)
     end
