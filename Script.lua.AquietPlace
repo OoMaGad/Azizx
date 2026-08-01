@@ -121,7 +121,7 @@ end
 
 createToggle("Player ESP", "PlayerESP", false)
 createToggle("Monster ESP", "MonsterESP", false)
-createToggle("Item Collector ESP", "ItemESP", false)
+createToggle("Items esp", "ItemESP", false)
 createToggle("Instant Interact", "InstantInteract", false)
 createToggle("Aimbot [E]", "Aimbot", false)
 createToggle("Character Glow", "CharacterGlow", false)
