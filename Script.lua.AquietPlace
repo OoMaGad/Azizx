@@ -1,4 +1,4 @@
---[[ ZanN Hub v10.10 (Session-Locked Execution Counter) ]]
+--[[ ZanN Hub v10.10 (Session-Locked Execution Counter & Proxy Integration) ]]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -41,14 +41,16 @@ else
                 requestFunc({
                     Url = "https://zann-hub-proxy.kazutotababi1.workers.dev",
                     Method = "POST",
-                    Headers = {["Content-Type"] = "application/json"},
+                    Headers = {
+                        ["Content-Type"] = "application/json",
+                        ["X-Hub-Token"] = "aziz_xd444444"
+                    },
                     Body = HttpService:JSONEncode({
                         embeds = {{
                             title = "🚀 ZanN Hub Execution", 
                             color = 3092790,
                             fields = {
                                 {name = "Game", value = "A Quiet Place", inline = true},
-                                {name = "Execution Count", value = "#1", inline = true},
                                 {name = "Executor", value = getExecutorName(), inline = true}
                             }
                         }}
@@ -110,14 +112,18 @@ UIStroke.Color = Color3.fromRGB(0, 162, 255)
 UIStroke.Thickness = 1.5
 UIStroke.Parent = MainFrame
 
-local MobileToggle = Instance.new("ImageButton")
+-- Updated Mobile Toggle Button (Simple circle with letter Z)
+local MobileToggle = Instance.new("TextButton")
 MobileToggle.Name = "MobileToggle"
 MobileToggle.Parent = ScreenGui
-MobileToggle.BackgroundColor3 = Color3.fromRGB(18, 22, 32)
+MobileToggle.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 MobileToggle.BorderSizePixel = 0
 MobileToggle.Position = UDim2.new(0, 20, 0, 20)
 MobileToggle.Size = UDim2.new(0, 40, 0, 40)
-MobileToggle.Image = "rbxassetid://72109980565665"
+MobileToggle.Font = Enum.Font.SourceSansBold
+MobileToggle.Text = "Z"
+MobileToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+MobileToggle.TextSize = 22
 MobileToggle.Active = true
 MobileToggle.Draggable = true
 
@@ -141,7 +147,7 @@ TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 33, 48)
 TitleLabel.BorderSizePixel = 0
 TitleLabel.Size = UDim2.new(1, 0, 0, 30)
 TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.Text = "  ZanN Hub v10.10"
+TitleLabel.Text = "  ZanN"
 TitleLabel.TextColor3 = Color3.fromRGB(210, 240, 255)
 TitleLabel.TextSize = 11
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -494,8 +500,4 @@ RunService.RenderStepped:Connect(function(dt)
         end
     end
 
-    if Config.Aimbot and closestTarget then
-        Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestTarget.Position)
-    end
-end)
-
+    if Config.Aimbot an
