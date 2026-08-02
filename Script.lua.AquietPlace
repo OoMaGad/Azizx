@@ -8,10 +8,8 @@ local HttpService = game:GetService("HttpService")
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
--- Check if this specific session has already triggered the webhook
 local sessionKey = "ZanNHub_Executed_" .. tostring(LocalPlayer.UserId)
 if getgenv()[sessionKey] then
-    -- Already executed this session, do not send webhook again until rejoin
     warn("[ZanN Hub]: Webhook already sent for this game session.")
 else
     getgenv()[sessionKey] = true
@@ -112,7 +110,6 @@ UIStroke.Color = Color3.fromRGB(0, 162, 255)
 UIStroke.Thickness = 1.5
 UIStroke.Parent = MainFrame
 
--- Updated Mobile Toggle Button (Simple circle with letter Z)
 local MobileToggle = Instance.new("TextButton")
 MobileToggle.Name = "MobileToggle"
 MobileToggle.Parent = ScreenGui
@@ -271,7 +268,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         end
     end
 end)
-
 local ESPCache = {}
 local function getDrawing(target)
     if not Drawing or not Drawing.new then return nil end
@@ -500,4 +496,8 @@ RunService.RenderStepped:Connect(function(dt)
         end
     end
 
-    if Config.Aimbot an
+    if Config.Aimbot and closestTarget then
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestTarget.Position)
+    end
+end)
+
