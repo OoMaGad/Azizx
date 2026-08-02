@@ -1,64 +1,11 @@
---[[ ZanN Hub v10.10 (Unified Script) ]]
+--[[ ZanN Hub v10.21 (Webhook System Removed) ]]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
-local HttpService = game:GetService("HttpService")
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
-
-local sessionKey = "ZanNHub_Executed_" .. tostring(LocalPlayer.UserId)
-if getgenv()[sessionKey] then
-    warn("[ZanN Hub]: Webhook already sent for this game session.")
-else
-    getgenv()[sessionKey] = true
-
-    local function getExecutorName()
-        local success, name = pcall(function()
-            if identifyexecutor then
-                local n, v = identifyexecutor()
-                return n or "Unknown"
-            elseif getexecutorname then
-                return getexecutorname()
-            elseif syn then
-                return "Synapse X"
-            elseif Fluxus then
-                return "Fluxus"
-            else
-                return "Unknown"
-            end
-        end)
-        return success and tostring(name) or "Unknown"
-    end
-
-    task.spawn(function()
-        pcall(function()
-            local requestFunc = syn and syn.request or request or http_request or (Fluxus and Fluxus.request)
-            if requestFunc then
-                requestFunc({
-                    Url = "https://zann-hub-proxy.kazutotababi1.workers.dev",
-                    Method = "POST",
-                    Headers = {
-                        ["Content-Type"] = "application/json",
-                        ["X-Hub-Token"] = "aziz_xd444444"
-                    },
-                    Body = HttpService:JSONEncode({
-                        embeds = {{
-                            title = "🚀 ZanN Hub Execution", 
-                            color = 3092790,
-                            fields = {
-                                {name = "Game", value = "A Quiet Place", inline = true},
-                                {name = "Executor", value = getExecutorName(), inline = true},
-                                {name = "Execution Count", value = "#1", inline = true}
-                            }
-                        }}
-                    })
-                })
-            end
-        end)
-    end)
-end
 
 if CoreGui:FindFirstChild("ZanNHub") then
     CoreGui.ZanNHub:Destroy()
