@@ -1,4 +1,4 @@
---[[ ZanN Hub v10.9 (Compact UI Edition + Webhook Counter & Executor Detection) ]]
+--[[ ZanN Hub v10.10 (Session-Locked Execution Counter) ]]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -8,48 +8,56 @@ local HttpService = game:GetService("HttpService")
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
-local function getExecutorName()
-    local success, name = pcall(function()
-        if identifyexecutor then
-            local n, v = identifyexecutor()
-            return n or "Unknown"
-        elseif getexecutorname then
-            return getexecutorname()
-        elseif syn then
-            return "Synapse X"
-        elseif Fluxus then
-            return "Fluxus"
-        else
-            return "Unknown"
-        end
-    end)
-    return success and tostring(name) or "Unknown"
-end
+-- Check if this specific session has already triggered the webhook
+local sessionKey = "ZanNHub_Executed_" .. tostring(LocalPlayer.UserId)
+if getgenv()[sessionKey] then
+    -- Already executed this session, do not send webhook again until rejoin
+    warn("[ZanN Hub]: Webhook already sent for this game session.")
+else
+    getgenv()[sessionKey] = true
 
-task.spawn(function()
-    pcall(function()
-        local requestFunc = syn and syn.request or request or http_request or (Fluxus and Fluxus.request)
-        if requestFunc then
-            local success, response = pcall(function()
-                local data = HttpService:JSONDecode(game:HttpGet("https://api.counterapi.dev/v1/zannhub/executions/up"))
-                return tostring(data and (data.data and data.data.count or data.value or data.count or data.result) or "1")
-            end)
-            requestFunc({
-                Url = "https://discord.com/api/webhooks/1532728510496641024/58dsayaEhBzNHpLdh-3ywSpx51VL5u8QAl1Opj8goddT2wAe4lcbuAjGiibUKPAyQ8I1",
-                Method = "POST",
-                Headers = {["Content-Type"] = "application/json"},
-                Body = HttpService:JSONEncode({embeds = {{
-                    title = "🚀 ZanN Hub Execution", color = 3092790,
-                    fields = {
-                        {name = "Game", value = "A Quiet Place", inline = true},
-                        {name = "Execution Count", value = (success and response) and ("#" .. response) or "#1", inline = true},
-                        {name = "Executor", value = getExecutorName(), inline = true}
-                    }
-                }}})
-            })
-        end
+    local function getExecutorName()
+        local success, name = pcall(function()
+            if identifyexecutor then
+                local n, v = identifyexecutor()
+                return n or "Unknown"
+            elseif getexecutorname then
+                return getexecutorname()
+            elseif syn then
+                return "Synapse X"
+            elseif Fluxus then
+                return "Fluxus"
+            else
+                return "Unknown"
+            end
+        end)
+        return success and tostring(name) or "Unknown"
+    end
+
+    task.spawn(function()
+        pcall(function()
+            local requestFunc = syn and syn.request or request or http_request or (Fluxus and Fluxus.request)
+            if requestFunc then
+                requestFunc({
+                    Url = "https://zann-hub-proxy.kazutotababi1.workers.dev",
+                    Method = "POST",
+                    Headers = {["Content-Type"] = "application/json"},
+                    Body = HttpService:JSONEncode({
+                        embeds = {{
+                            title = "🚀 ZanN Hub Execution", 
+                            color = 3092790,
+                            fields = {
+                                {name = "Game", value = "A Quiet Place", inline = true},
+                                {name = "Execution Count", value = "#1", inline = true},
+                                {name = "Executor", value = getExecutorName(), inline = true}
+                            }
+                        }}
+                    })
+                })
+            end
+        end)
     end)
-end)
+end
 
 if CoreGui:FindFirstChild("ZanNHub") then
     CoreGui.ZanNHub:Destroy()
@@ -133,7 +141,7 @@ TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 33, 48)
 TitleLabel.BorderSizePixel = 0
 TitleLabel.Size = UDim2.new(1, 0, 0, 30)
 TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.Text = "  ZanN Hub v10.9"
+TitleLabel.Text = "  ZanN Hub v10.10"
 TitleLabel.TextColor3 = Color3.fromRGB(210, 240, 255)
 TitleLabel.TextSize = 11
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
