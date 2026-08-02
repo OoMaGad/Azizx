@@ -1,4 +1,4 @@
---[[ ZanN Hub v10.10 (Session-Locked Execution Counter & Proxy Integration) ]]
+--[[ ZanN Hub v10.10 (Session-Locked Execution Counter) ]]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -16,24 +16,6 @@ if getgenv()[sessionKey] then
 else
     getgenv()[sessionKey] = true
 
-    local function getExecutorName()
-        local success, name = pcall(function()
-            if identifyexecutor then
-                local n, v = identifyexecutor()
-                return n or "Unknown"
-            elseif getexecutorname then
-                return getexecutorname()
-            elseif syn then
-                return "Synapse X"
-            elseif Fluxus then
-                return "Fluxus"
-            else
-                return "Unknown"
-            end
-        end)
-        return success and tostring(name) or "Unknown"
-    end
-
     task.spawn(function()
         pcall(function()
             local requestFunc = syn and syn.request or request or http_request or (Fluxus and Fluxus.request)
@@ -48,12 +30,7 @@ else
                     Body = HttpService:JSONEncode({
                         embeds = {{
                             title = "🚀 ZanN Hub Execution", 
-                            color = 3092790,
-                            fields = {
-                                {name = "Game", value = "A Quiet Place", inline = true},
-                                {name = "Execution Count", value = "#1", inline = true},
-                                {name = "Executor", value = getExecutorName(), inline = true}
-                            }
+                            color = 3092790
                         }}
                     })
                 })
@@ -113,18 +90,14 @@ UIStroke.Color = Color3.fromRGB(0, 162, 255)
 UIStroke.Thickness = 1.5
 UIStroke.Parent = MainFrame
 
--- Updated Mobile Toggle Button (Simple circle with letter Z)
-local MobileToggle = Instance.new("TextButton")
+local MobileToggle = Instance.new("ImageButton")
 MobileToggle.Name = "MobileToggle"
 MobileToggle.Parent = ScreenGui
-MobileToggle.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+MobileToggle.BackgroundColor3 = Color3.fromRGB(18, 22, 32)
 MobileToggle.BorderSizePixel = 0
 MobileToggle.Position = UDim2.new(0, 20, 0, 20)
 MobileToggle.Size = UDim2.new(0, 40, 0, 40)
-MobileToggle.Font = Enum.Font.SourceSansBold
-MobileToggle.Text = "Z"
-MobileToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-MobileToggle.TextSize = 22
+MobileToggle.Image = "rbxassetid://72109980565665"
 MobileToggle.Active = true
 MobileToggle.Draggable = true
 
@@ -148,7 +121,7 @@ TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 33, 48)
 TitleLabel.BorderSizePixel = 0
 TitleLabel.Size = UDim2.new(1, 0, 0, 30)
 TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.Text = "  ZanN"
+TitleLabel.Text = "  ZanN Hub v10.10"
 TitleLabel.TextColor3 = Color3.fromRGB(210, 240, 255)
 TitleLabel.TextSize = 11
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -496,4 +469,12 @@ RunService.RenderStepped:Connect(function(dt)
     end
 
     for target, txt in pairs(ESPCache) do
-        if not activeDrawings[
+        if not activeDrawings[target] then
+            txt.Visible = false
+        end
+    end
+
+    if Config.Aimbot and closestTarget then
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestTarget.Position)
+    end
+end)
