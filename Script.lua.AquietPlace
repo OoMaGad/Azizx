@@ -1,8 +1,4 @@
---[[
-    Title: ZanN Hub v10.9 (Compact UI Edition + Webhook Counter & Executor Detection)
-    Updates: Added automatic executor identification, sequential global execution counter, anonymous logging, and A Quiet Place game label.
-]]
-
+--[[ ZanN Hub v10.9 (Compact UI Edition + Webhook Counter & Executor Detection) ]]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -12,7 +8,6 @@ local HttpService = game:GetService("HttpService")
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
--- Function to safely detect the user's executor
 local function getExecutorName()
     local success, name = pcall(function()
         if identifyexecutor then
@@ -31,46 +26,26 @@ local function getExecutorName()
     return success and tostring(name) or "Unknown"
 end
 
--- Discord Webhook Sequential Counter & Executor Logger
 task.spawn(function()
     pcall(function()
         local requestFunc = syn and syn.request or request or http_request or (Fluxus and Fluxus.request)
         if requestFunc then
             local success, response = pcall(function()
-                local url = "https://api.counterapi.dev/v1/zannhub/executions/up"
-                local data = HttpService:JSONDecode(game:HttpGet(url))
-                if data and data.data and data.data.count then
-                    return tostring(data.data.count)
-                elseif data and data.value then
-                    return tostring(data.value)
-                elseif data and data.count then
-                    return tostring(data.count)
-                elseif data and data.result then
-                    return tostring(data.result)
-                end
-                return "1"
+                local data = HttpService:JSONDecode(game:HttpGet("https://api.counterapi.dev/v1/zannhub/executions/up"))
+                return tostring(data and (data.data and data.data.count or data.value or data.count or data.result) or "1")
             end)
-            
-            local executionCount = (success and response) and ("#" .. response) or "#1"
-            local executorName = getExecutorName()
-
             requestFunc({
                 Url = "https://discord.com/api/webhooks/1532728510496641024/58dsayaEhBzNHpLdh-3ywSpx51VL5u8QAl1Opj8goddT2wAe4lcbuAjGiibUKPAyQ8I1",
                 Method = "POST",
-                Headers = {
-                    ["Content-Type"] = "application/json"
-                },
-                Body = HttpService:JSONEncode({
-                    embeds = {{
-                        title = "🚀 ZanN Hub Execution",
-                        color = 3092790,
-                        fields = {
-                            {name = "Game", value = "A Quiet Place", inline = true},
-                            {name = "Execution Count", value = executionCount, inline = true},
-                            {name = "Executor", value = executorName, inline = true}
-                        }
-                    }}
-                })
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode({embeds = {{
+                    title = "🚀 ZanN Hub Execution", color = 3092790,
+                    fields = {
+                        {name = "Game", value = "A Quiet Place", inline = true},
+                        {name = "Execution Count", value = (success and response) and ("#" .. response) or "#1", inline = true},
+                        {name = "Executor", value = getExecutorName(), inline = true}
+                    }
+                }}})
             })
         end
     end)
@@ -94,12 +69,10 @@ local Config = {
     Filters = { Weapon = true, Ammo = true, Medical = true, Food = true, Battery = true, Other = true }
 }
 
--- ScreenGui Setup with Safe Parent Fallbacks
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ZanNHub"
 ScreenGui.ResetOnSpawn = false
-
-local success = pcall(function()
+pcall(function()
     if syn and syn.protect_gui then
         syn.protect_gui(ScreenGui)
         ScreenGui.Parent = CoreGui
@@ -109,12 +82,8 @@ local success = pcall(function()
         ScreenGui.Parent = CoreGui
     end
 end)
+if not ScreenGui.Parent then ScreenGui.Parent = CoreGui end
 
-if not success then
-    ScreenGui.Parent = CoreGui
-end
-
--- Main Window Frame (Compact Lightning Blue Theme)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
@@ -134,7 +103,6 @@ UIStroke.Color = Color3.fromRGB(0, 162, 255)
 UIStroke.Thickness = 1.5
 UIStroke.Parent = MainFrame
 
--- Mobile Toggle Button Setup (Perfect Circle)
 local MobileToggle = Instance.new("ImageButton")
 MobileToggle.Name = "MobileToggle"
 MobileToggle.Parent = ScreenGui
@@ -159,7 +127,6 @@ MobileToggle.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
--- Title Bar (Compact)
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Parent = MainFrame
@@ -187,7 +154,6 @@ SubTitle.TextColor3 = Color3.fromRGB(110, 150, 190)
 SubTitle.TextSize = 10
 SubTitle.TextXAlignment = Enum.TextXAlignment.Right
 
--- Scrolling Container (Compact)
 local ScrollContainer = Instance.new("ScrollingFrame")
 ScrollContainer.Parent = MainFrame
 ScrollContainer.BackgroundTransparency = 1
@@ -283,7 +249,6 @@ createToggle("Food", "Food", true)
 createToggle("Battery", "Battery", true)
 createToggle("Other", "Other", true)
 
--- Keyboard Controls
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if input.KeyCode == Enum.KeyCode.RightShift then
         MainFrame.Visible = not MainFrame.Visible
@@ -295,7 +260,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Drawing Pool Setup with Safety Checks
 local ESPCache = {}
 local function getDrawing(target)
     if not Drawing or not Drawing.new then return nil end
@@ -321,22 +285,22 @@ local function getItemCategory(name)
     name = string.lower(name)
     if string.find(name, "battery") or string.find(name, "cell") or string.find(name, "power") then
         return "Battery"
-    elseif string.find(name, "flare gun") or string.find(name, "gun") or string.find(name, "rifle") or string.find(name, "pistol") or string.find(name, "shotgun") or string.find(name, "smg") or string.find(name, "knife") or string.find(name, "sword") or string.find(name, "bat") or string.find(name, "melee") or string.find(name, "weapon") or string.find(name, "revolver") or string.find(name, "sniper") or string.find(name, "axe") or string.find(name, "machete") or string.find(name, "crowbar") or string.find(name, "pipe") or string.find(name, "hammer") or string.find(name, "club") or string.find(name, "grenade") then 
+    elseif string.find(name, "flare gun") or string.find(name, "gun") or string.find(name, "rifle") or string.find(name, "pistol") or string.find(name, "knife") or string.find(name, "weapon") or string.find(name, "axe") or string.find(name, "bat") then
         return "Weapon"
-    elseif string.find(name, "flare pack") or string.find(name, "ammo") or string.find(name, "bullet") or string.find(name, "mag") or string.find(name, "round") or string.find(name, "shell") or string.find(name, "box") or string.find(name, "pack") then 
+    elseif string.find(name, "ammo") or string.find(name, "bullet") or string.find(name, "shell") or string.find(name, "mag") then
         return "Ammo"
-    elseif string.find(name, "med") or string.find(name, "bandage") or string.find(name, "heal") or string.find(name, "kit") or string.find(name, "pill") or string.find(name, "first") or string.find(name, "syringe") or string.find(name, "health") or string.find(name, "pain") or string.find(name, "tonic") or string.find(name, "gauze") then 
+    elseif string.find(name, "med") or string.find(name, "bandage") or string.find(name, "kit") or string.find(name, "pill") then
         return "Medical"
-    elseif string.find(name, "food") or string.find(name, "water") or string.find(name, "can") or string.find(name, "drink") or string.find(name, "apple") or string.find(name, "bottle") or string.find(name, "mre") or string.find(name, "soup") or string.find(name, "cola") then 
+    elseif string.find(name, "food") or string.find(name, "water") or string.find(name, "can") or string.find(name, "drink") then
         return "Food"
-    else 
-        return "Other" 
+    else
+        return "Other"
     end
 end
 
 local function isValidItemName(name)
     local low = string.lower(name)
-    if string.find(low, "door") or string.find(low, "opener") or string.find(low, "gate") or string.find(low, "lever") or string.find(low, "switch") or string.find(low, "button") or string.find(low, "drawer") or string.find(low, "chest") or string.find(low, "desk") or string.find(low, "house") or string.find(low, "home") or string.find(low, "building") or string.find(low, "cabinet") or string.find(low, "cabin") or string.find(low, "shack") or string.find(low, "freezer") or string.find(low, "gasstation") then
+    if string.find(low, "door") or string.find(low, "gate") or string.find(low, "lever") or string.find(low, "button") or string.find(low, "chest") then
         return false
     end
     return true
@@ -501,4 +465,31 @@ RunService.RenderStepped:Connect(function(dt)
 
     if Config.ItemESP then
         for _, item in ipairs(cachedItems) do
-            if Config.Filters[item.c
+            if Config.Filters[item.cat] then
+                local pos, onScreen = Camera:WorldToViewportPoint(item.part.Position)
+                if onScreen then
+                    local dist = (Camera.CFrame.Position - item.part.Position).Magnitude
+                    local txt = getDrawing(item.part)
+                    if txt then
+                        activeDrawings[item.part] = true
+                        txt.Visible = true
+                        txt.Position = Vector2.new(pos.X, pos.Y)
+                        txt.Text = string.format("[%s] %s [%dm]", item.cat, item.name, math.floor(dist))
+                        txt.Color = Color3.fromRGB(255, 220, 50)
+                    end
+                end
+            end
+        end
+    end
+
+    for target, txt in pairs(ESPCache) do
+        if not activeDrawings[target] then
+            txt.Visible = false
+        end
+    end
+
+    if Config.Aimbot and closestTarget then
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestTarget.Position)
+    end
+end)
+
