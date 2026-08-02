@@ -61,7 +61,6 @@ local Config = {
     ItemESP = false,
     InstantInteract = false,
     Aimbot = false,
-    CharacterGlow = false,
     SpeedHack = false,
     WalkSpeed = 50,
     JumpHack = false,
@@ -90,7 +89,7 @@ MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(18, 22, 32)
 MainFrame.BorderSizePixel = 0
 MainFrame.Position = UDim2.new(0.5, -110, 0.5, -175)
-MainFrame.Size = UDim2.new(0, 220, 0, 350)
+MainFrame.Size = UDim2.new(0, 220, 0, 320)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
@@ -159,7 +158,7 @@ ScrollContainer.Parent = MainFrame
 ScrollContainer.BackgroundTransparency = 1
 ScrollContainer.Position = UDim2.new(0, 6, 0, 36)
 ScrollContainer.Size = UDim2.new(1, -12, 1, -42)
-ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 520)
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 480)
 ScrollContainer.ScrollBarThickness = 3
 ScrollContainer.ScrollBarImageColor3 = Color3.fromRGB(0, 162, 255)
 
@@ -233,7 +232,6 @@ createHeader("--- VISUALS ---")
 createToggle("Player ESP", "PlayerESP", false)
 createToggle("Monster ESP", "MonsterESP", false)
 createToggle("Items esp", "ItemESP", false)
-createToggle("Character Glow", "CharacterGlow", false)
 
 createHeader("--- COMBAT & UTILITY ---")
 createToggle("Aimbot [E]", "Aimbot", false)
@@ -285,22 +283,22 @@ local function getItemCategory(name)
     name = string.lower(name)
     if string.find(name, "battery") or string.find(name, "cell") or string.find(name, "power") then
         return "Battery"
-    elseif string.find(name, "flare gun") or string.find(name, "gun") or string.find(name, "rifle") or string.find(name, "pistol") or string.find(name, "knife") or string.find(name, "weapon") or string.find(name, "axe") or string.find(name, "bat") then
+    elseif string.find(name, "flare gun") or string.find(name, "gun") or string.find(name, "rifle") or string.find(name, "pistol") or string.find(name, "shotgun") or string.find(name, "smg") or string.find(name, "knife") or string.find(name, "sword") or string.find(name, "bat") or string.find(name, "melee") or string.find(name, "weapon") or string.find(name, "revolver") or string.find(name, "sniper") or string.find(name, "axe") or string.find(name, "machete") or string.find(name, "crowbar") or string.find(name, "pipe") or string.find(name, "hammer") or string.find(name, "club") or string.find(name, "grenade") then 
         return "Weapon"
-    elseif string.find(name, "ammo") or string.find(name, "bullet") or string.find(name, "shell") or string.find(name, "mag") then
+    elseif string.find(name, "flare pack") or string.find(name, "ammo") or string.find(name, "bullet") or string.find(name, "mag") or string.find(name, "round") or string.find(name, "shell") or string.find(name, "box") or string.find(name, "pack") then 
         return "Ammo"
-    elseif string.find(name, "med") or string.find(name, "bandage") or string.find(name, "kit") or string.find(name, "pill") then
+    elseif string.find(name, "med") or string.find(name, "bandage") or string.find(name, "heal") or string.find(name, "kit") or string.find(name, "pill") or string.find(name, "first") or string.find(name, "syringe") or string.find(name, "health") or string.find(name, "pain") or string.find(name, "tonic") or string.find(name, "gauze") then 
         return "Medical"
-    elseif string.find(name, "food") or string.find(name, "water") or string.find(name, "can") or string.find(name, "drink") then
+    elseif string.find(name, "food") or string.find(name, "water") or string.find(name, "can") or string.find(name, "drink") or string.find(name, "apple") or string.find(name, "bottle") or string.find(name, "mre") or string.find(name, "soup") or string.find(name, "cola") then 
         return "Food"
-    else
-        return "Other"
+    else 
+        return "Other" 
     end
 end
 
 local function isValidItemName(name)
     local low = string.lower(name)
-    if string.find(low, "door") or string.find(low, "gate") or string.find(low, "lever") or string.find(low, "button") or string.find(low, "chest") then
+    if string.find(low, "door") or string.find(low, "opener") or string.find(low, "gate") or string.find(low, "lever") or string.find(low, "switch") or string.find(low, "button") or string.find(low, "drawer") or string.find(low, "chest") or string.find(low, "desk") or string.find(low, "house") or string.find(low, "home") or string.find(low, "building") or string.find(low, "cabinet") or string.find(low, "cabin") or string.find(low, "shack") or string.find(low, "freezer") or string.find(low, "gasstation") then
         return false
     end
     return true
