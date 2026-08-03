@@ -22,17 +22,7 @@ else
             if requestFunc then
                 requestFunc({
                     Url = "https://zann-hub-proxy.kazutotababi1.workers.dev",
-                    Method = "POST",
-                    Headers = {
-                        ["Content-Type"] = "application/json",
-                        ["X-Hub-Token"] = "aziz_xd444444"
-                    },
-                    Body = HttpService:JSONEncode({
-                        embeds = {{
-                            title = "🚀 ZanN Hub Execution", 
-                            color = 3092790
-                        }}
-                    })
+                    Method = "POST"
                 })
             end
         end)
@@ -478,3 +468,4 @@ RunService.RenderStepped:Connect(function(dt)
         Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestTarget.Position)
     end
 end)
+
