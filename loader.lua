@@ -1,17 +1,14 @@
 local success, err = pcall(function()
-    local HttpGet = game.HttpGet
-    local GameId = game.GameId
-
     local listUrl = "https://raw.githubusercontent.com/OoMaGad/Azizx/refs/heads/main/GameList.lua"
-    local games = loadstring(HttpGet(game, listUrl))()
+    local games = loadstring(game:HttpGet(listUrl))()
 
-    local scriptUrl = games[GameId]
+    local scriptUrl = games[game.PlaceId]
     if not scriptUrl then
-        warn("ZanN Hub: Unsupported game ID: " .. tostring(GameId))
+        warn("ZanN Hub: Unsupported Place ID: " .. tostring(game.PlaceId))
         return
     end
 
-    loadstring(HttpGet(game, scriptUrl))()
+    loadstring(game:HttpGet(scriptUrl))()
 end)
 
 if not success then
