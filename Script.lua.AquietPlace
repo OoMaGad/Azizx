@@ -1,24 +1,33 @@
---[[ ZanN Hub v10.10 ]]
+--[[ ZanN Hub v10.10 (Session-Locked Execution Counter) ]]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
+local HttpService = game:GetService("HttpService")
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
--- Safe Webhook Pcall (Prevents mobile execution crashes)
-task.spawn(function()
-    pcall(function()
-        local requestFunc = syn and syn.request or request or http_request or (Fluxus and Fluxus.request)
-        if requestFunc then
-            requestFunc({
-                Url = "https://zann-hub-proxy.kazutotababi1.workers.dev",
-                Method = "POST"
-            })
-        end
+-- Check if this specific session has already triggered the webhook
+local sessionKey = "ZanNHub_Executed_" .. tostring(LocalPlayer.UserId)
+if getgenv()[sessionKey] then
+    -- Already executed this session, do not send webhook again until rejoin
+    warn("[ZanN Hub]: Webhook already sent for this game session.")
+else
+    getgenv()[sessionKey] = true
+
+    task.spawn(function()
+        pcall(function()
+            local requestFunc = syn and syn.request or request or http_request or (Fluxus and Fluxus.request)
+            if requestFunc then
+                requestFunc({
+                    Url = "https://zann-hub-proxy.kazutotababi1.workers.dev",
+                    Method = "POST"
+                })
+            end
+        end)
     end)
-end)
+end
 
 if CoreGui:FindFirstChild("ZanNHub") then
     CoreGui.ZanNHub:Destroy()
@@ -157,7 +166,7 @@ local function createToggle(name, configKey, isFilter)
     btn.BackgroundColor3 = default and Color3.fromRGB(0, 110, 220) or Color3.fromRGB(24, 30, 42)
     btn.BorderSizePixel = 0
     btn.Font = Enum.Font.GothamSemibold
-    btn.Text = "  " + name
+    btn.Text = "  " .. name
     btn.TextColor3 = Color3.fromRGB(235, 245, 255)
     btn.TextSize = 10
     btn.TextXAlignment = Enum.TextXAlignment.Left
@@ -229,9 +238,7 @@ end)
 
 local ESPCache = {}
 local function getDrawing(target)
-    local success, drawingLib = pcall(function() return Drawing end)
-    if not success or not drawingLib or not Drawing.new then return nil end
-    
+    if not Drawing or not Drawing.new then return nil end
     if not ESPCache[target] then
         local successTxt, txt = pcall(function()
             local t = Drawing.new("Text")
@@ -461,4 +468,3 @@ RunService.RenderStepped:Connect(function(dt)
         Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestTarget.Position)
     end
 end)
-
