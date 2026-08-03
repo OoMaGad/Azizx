@@ -1,20 +1,21 @@
---[[ ZanN Hub v10.75 (Session-Locked Execution Counter) - WindUI Version ]]
+--[[ ZanN Hub v10.10 (Session-Locked Execution Counter) ]]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
-local VirtualUser = game:GetService("VirtualUser")
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
--- Session Webhook Logic (Cloudflare Worker Proxy Unaffected)
+-- Check if this specific session has already triggered the webhook
 local sessionKey = "ZanNHub_Executed_" .. tostring(LocalPlayer.UserId)
 if getgenv()[sessionKey] then
+    -- Already executed this session, do not send webhook again until rejoin
     warn("[ZanN Hub]: Webhook already sent for this game session.")
 else
     getgenv()[sessionKey] = true
+
     task.spawn(function()
         pcall(function()
             local requestFunc = syn and syn.request or request or http_request or (Fluxus and Fluxus.request)
@@ -28,7 +29,10 @@ else
     end)
 end
 
--- Config Table (ItemESP set to false by default)
+if CoreGui:FindFirstChild("ZanNHub") then
+    CoreGui.ZanNHub:Destroy()
+end
+
 local Config = {
     PlayerESP = false,
     MonsterESP = false,
@@ -39,191 +43,196 @@ local Config = {
     WalkSpeed = 50,
     JumpHack = false,
     JumpPower = 150,
-    InfStamina = false,
-    InfWater = false,
-    AntiAFK = false,
     Filters = { Weapon = true, Ammo = true, Medical = true, Food = true, Battery = true, Other = true }
 }
 
--- Load the OFFICIAL WindUI Library
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
-
-local Window = WindUI:CreateWindow({
-    Title = "ZanN Hub v10.75",
-    Icon = "rbxassetid://82730659857463", 
-    Author = "ZanN",
-    Folder = "ZanNHub",
-    Size = UDim2.fromOffset(580, 460),
-    Transparent = true,
-    Theme = "Dark",
-    Resizable = true,
-})
-
--- ==========================================
--- TABS & UI SETUP (Classified Layout)
--- ==========================================
-
-local HomeTab = Window:Tab({ Title = "Home", Icon = "home" })
-local PlayerTab = Window:Tab({ Title = "Player", Icon = "user" })
-local SurvivalTab = Window:Tab({ Title = "Survival", Icon = "heart" })
-local VisualsTab = Window:Tab({ Title = "Visuals", Icon = "eye" })
-local CombatTab = Window:Tab({ Title = "Combat", Icon = "swords" })
-local MiscTab = Window:Tab({ Title = "Misc", Icon = "globe" })
-local FiltersTab = Window:Tab({ Title = "Item Filters", Icon = "filter" })
-
--- Home Tab (Updates, Styled Community Portal with Larger Logo Image)
-HomeTab:Section({ Title = "Changelog & Status" })
-HomeTab:Paragraph({
-    Title = "v10.75 Updates",
-    Content = "- Added rocket launcher and launcher terms to Weapon category filter checks\n- Item ESP remains OFF by default with category filters ready\n- Maintained stable Cloudflare worker routing and anti-AFK features"
-})
-
-HomeTab:Section({ Title = "Official Community Portal" })
-HomeTab:Paragraph({
-    Title = "ZanN Hub Community",
-    Content = "Connect with fellow players, track script changes, and get support through our verified Discord portal.",
-    Image = "rbxassetid://82730659857463",
-    ImageSize = 56
-})
-HomeTab:Button({
-    Title = "Join ZanN Hub Discord",
-    Callback = function()
-        setclipboard("https://discord.gg/nUDXEsBdd")
-        WindUI:Notify({
-            Title = "Copied to Clipboard!",
-            Content = "Discord invite link successfully copied.",
-            Duration = 3
-        })
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ZanNHub"
+ScreenGui.ResetOnSpawn = false
+pcall(function()
+    if syn and syn.protect_gui then
+        syn.protect_gui(ScreenGui)
+        ScreenGui.Parent = CoreGui
+    elseif gethui then
+        ScreenGui.Parent = gethui()
+    else
+        ScreenGui.Parent = CoreGui
     end
-})
+end)
+if not ScreenGui.Parent then ScreenGui.Parent = CoreGui end
 
--- Player Tab (Speed, Jump)
-PlayerTab:Section({ Title = "Movement Modifications" })
-PlayerTab:Toggle({
-    Title = "Speed Hack",
-    Default = Config.SpeedHack,
-    Callback = function(state) Config.SpeedHack = state end
-})
-PlayerTab:Slider({
-    Title = "Walk Speed Level",
-    Step = 1,
-    Min = 16,
-    Max = 250,
-    Default = Config.WalkSpeed,
-    Callback = function(value) Config.WalkSpeed = value end
-})
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 22, 32)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.5, -110, 0.5, -175)
+MainFrame.Size = UDim2.new(0, 220, 0, 320)
+MainFrame.Active = true
+MainFrame.Draggable = true
 
-PlayerTab:Toggle({
-    Title = "Jump Hack",
-    Default = Config.JumpHack,
-    Callback = function(state) Config.JumpHack = state end
-})
-PlayerTab:Slider({
-    Title = "Jump Power Level",
-    Step = 1,
-    Min = 50,
-    Max = 300,
-    Default = Config.JumpPower,
-    Callback = function(value) Config.JumpPower = value end
-})
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = MainFrame
 
--- Survival Tab (Vitals)
-SurvivalTab:Section({ Title = "Vital Bypasses" })
-SurvivalTab:Toggle({
-    Title = "Infinite Stamina",
-    Default = Config.InfStamina,
-    Callback = function(state) Config.InfStamina = state end
-})
-SurvivalTab:Toggle({
-    Title = "Infinite Water",
-    Default = Config.InfWater,
-    Callback = function(state) Config.InfWater = state end
-})
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(0, 162, 255)
+UIStroke.Thickness = 1.5
+UIStroke.Parent = MainFrame
 
--- Visuals Tab (ESP)
-VisualsTab:Section({ Title = "Target ESP Layout" })
-VisualsTab:Toggle({
-    Title = "Player ESP",
-    Default = Config.PlayerESP,
-    Callback = function(state) Config.PlayerESP = state end
-})
-VisualsTab:Toggle({
-    Title = "Monster ESP",
-    Default = Config.MonsterESP,
-    Callback = function(state) Config.MonsterESP = state end
-})
+local MobileToggle = Instance.new("ImageButton")
+MobileToggle.Name = "MobileToggle"
+MobileToggle.Parent = ScreenGui
+MobileToggle.BackgroundColor3 = Color3.fromRGB(18, 22, 32)
+MobileToggle.BorderSizePixel = 0
+MobileToggle.Position = UDim2.new(0, 20, 0, 20)
+MobileToggle.Size = UDim2.new(0, 40, 0, 40)
+MobileToggle.Image = "rbxassetid://72109980565665"
+MobileToggle.Active = true
+MobileToggle.Draggable = true
 
-VisualsTab:Toggle({
-    Title = "Item ESP",
-    Default = Config.ItemESP,
-    Callback = function(state) Config.ItemESP = state end
-})
+local MobileCorner = Instance.new("UICorner")
+MobileCorner.CornerRadius = UDim.new(1, 0)
+MobileCorner.Parent = MobileToggle
 
--- Combat Tab (Aimbot)
-CombatTab:Section({ Title = "Offensive Assist" })
-CombatTab:Toggle({
-    Title = "Aimbot [Keybind: E]",
-    Default = Config.Aimbot,
-    Callback = function(state) Config.Aimbot = state end
-})
+local MobileStroke = Instance.new("UIStroke")
+MobileStroke.Color = Color3.fromRGB(0, 162, 255)
+MobileStroke.Thickness = 1.5
+MobileStroke.Parent = MobileToggle
 
--- Misc Tab (Interactions, Anti-AFK)
-MiscTab:Section({ Title = "Environment Utilities" })
-MiscTab:Toggle({
-    Title = "Instant Interaction",
-    Default = Config.InstantInteract,
-    Callback = function(state) Config.InstantInteract = state end
-})
+MobileToggle.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
 
-MiscTab:Section({ Title = "Session Protection" })
-MiscTab:Toggle({
-    Title = "Anti-AFK",
-    Default = Config.AntiAFK,
-    Callback = function(state) Config.AntiAFK = state end
-})
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Parent = MainFrame
+TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 33, 48)
+TitleLabel.BorderSizePixel = 0
+TitleLabel.Size = UDim2.new(1, 0, 0, 30)
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Text = "  ZanN Hub v10.10"
+TitleLabel.TextColor3 = Color3.fromRGB(210, 240, 255)
+TitleLabel.TextSize = 11
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
--- Item Filters Tab
-FiltersTab:Section({ Title = "ESP Categories Control" })
-local filterList = {"Weapon", "Ammo", "Medical", "Food", "Battery", "Other"}
-local filterToggles = {}
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 8)
+TitleCorner.Parent = TitleLabel
 
-for _, filterName in ipairs(filterList) do
-    filterToggles[filterName] = FiltersTab:Toggle({
-        Title = filterName,
-        Default = Config.Filters[filterName],
-        Callback = function(state) Config.Filters[filterName] = state end
-    })
+local SubTitle = Instance.new("TextLabel")
+SubTitle.Parent = TitleLabel
+SubTitle.BackgroundTransparency = 1
+SubTitle.Position = UDim2.new(0, -8, 0, 0)
+SubTitle.Size = UDim2.new(1, -10, 1, 0)
+SubTitle.Font = Enum.Font.GothamMedium
+SubTitle.Text = "[RightShift]"
+SubTitle.TextColor3 = Color3.fromRGB(110, 150, 190)
+SubTitle.TextSize = 10
+SubTitle.TextXAlignment = Enum.TextXAlignment.Right
+
+local ScrollContainer = Instance.new("ScrollingFrame")
+ScrollContainer.Parent = MainFrame
+ScrollContainer.BackgroundTransparency = 1
+ScrollContainer.Position = UDim2.new(0, 6, 0, 36)
+ScrollContainer.Size = UDim2.new(1, -12, 1, -42)
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 480)
+ScrollContainer.ScrollBarThickness = 3
+ScrollContainer.ScrollBarImageColor3 = Color3.fromRGB(0, 162, 255)
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = ScrollContainer
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 5)
+
+local toggleButtons = {}
+
+local function createHeader(text)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, 0, 0, 18)
+    lbl.BackgroundTransparency = 1
+    lbl.Font = Enum.Font.GothamBold
+    lbl.Text = text
+    lbl.TextColor3 = Color3.fromRGB(80, 180, 255)
+    lbl.TextSize = 10
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = ScrollContainer
 end
 
--- Force only category filters visually ON upon execution while keeping Item ESP OFF by default
-task.spawn(function()
-    task.wait(0.1)
-    pcall(function()
-        for _, toggleObj in pairs(filterToggles) do
-            if toggleObj and toggleObj.Set then
-                toggleObj:Set(true)
-            end
-        end
-    end)
-end)
+local function createToggle(name, configKey, isFilter)
+    local default = isFilter and Config.Filters[configKey] or Config[configKey]
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 24)
+    btn.BackgroundColor3 = default and Color3.fromRGB(0, 110, 220) or Color3.fromRGB(24, 30, 42)
+    btn.BorderSizePixel = 0
+    btn.Font = Enum.Font.GothamSemibold
+    btn.Text = "  " .. name
+    btn.TextColor3 = Color3.fromRGB(235, 245, 255)
+    btn.TextSize = 10
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.Parent = ScrollContainer
+    
+    local status = Instance.new("TextLabel")
+    status.Size = UDim2.new(0, 40, 1, 0)
+    status.Position = UDim2.new(1, -45, 0, 0)
+    status.BackgroundTransparency = 1
+    status.Font = Enum.Font.GothamBold
+    status.Text = default and "ON" or "OFF"
+    status.TextColor3 = default and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(100, 130, 160)
+    status.TextSize = 10
+    status.TextXAlignment = Enum.TextXAlignment.Right
+    status.Parent = btn
 
--- ==========================================
--- CORE LOGIC & FUNCTIONS
--- ==========================================
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 5)
+    corner.Parent = btn
+    
+    local function updateState(newState)
+        if isFilter then
+            Config.Filters[configKey] = newState
+        else
+            Config[configKey] = newState
+        end
+        btn.BackgroundColor3 = newState and Color3.fromRGB(0, 110, 220) or Color3.fromRGB(24, 30, 42)
+        status.Text = newState and "ON" or "OFF"
+        status.TextColor3 = newState and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(100, 130, 160)
+    end
+
+    btn.MouseButton1Click:Connect(function()
+        local currentVal = isFilter and Config.Filters[configKey] or Config[configKey]
+        updateState(not currentVal)
+    end)
+
+    toggleButtons[configKey] = {button = btn, update = updateState}
+end
+
+createHeader("--- VISUALS ---")
+createToggle("Player ESP", "PlayerESP", false)
+createToggle("Monster ESP", "MonsterESP", false)
+createToggle("Items esp", "ItemESP", false)
+
+createHeader("--- COMBAT & UTILITY ---")
+createToggle("Aimbot [E]", "Aimbot", false)
+createToggle("Instant Interact", "InstantInteract", false)
+createToggle("Speed Hack", "SpeedHack", false)
+createToggle("Jump Hack", "JumpHack", false)
+
+createHeader("--- ITEM FILTERS ---")
+createToggle("Weapon", "Weapon", true)
+createToggle("Ammo", "Ammo", true)
+createToggle("Medical", "Medical", true)
+createToggle("Food", "Food", true)
+createToggle("Battery", "Battery", true)
+createToggle("Other", "Other", true)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if input.KeyCode == Enum.KeyCode.E and not gameProcessed then
-        Config.Aimbot = not Config.Aimbot
-    end
-end)
-
--- Anti-AFK Connection Logic
-LocalPlayer.Idled:Connect(function()
-    if Config.AntiAFK then
-        pcall(function()
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new(0, 0))
-        end)
+    if input.KeyCode == Enum.KeyCode.RightShift then
+        MainFrame.Visible = not MainFrame.Visible
+    elseif input.KeyCode == Enum.KeyCode.E and not gameProcessed then
+        local aimToggle = toggleButtons["Aimbot"]
+        if aimToggle then
+            aimToggle.update(not Config.Aimbot)
+        end
     end
 end)
 
@@ -241,24 +250,35 @@ local function getDrawing(target)
             t.Size = 10
             return t
         end)
-        if successTxt then ESPCache[target] = txt end
+        if successTxt then
+            ESPCache[target] = txt
+        end
     end
     return ESPCache[target]
 end
 
 local function getItemCategory(name)
     name = string.lower(name)
-    if string.find(name, "battery") or string.find(name, "cell") or string.find(name, "power") then return "Battery"
-    elseif string.find(name, "rocket launcher") or string.find(name, "launcher") or string.find(name, "flare gun") or string.find(name, "gun") or string.find(name, "rifle") or string.find(name, "pistol") or string.find(name, "shotgun") or string.find(name, "smg") or string.find(name, "knife") or string.find(name, "sword") or string.find(name, "bat") or string.find(name, "melee") or string.find(name, "weapon") or string.find(name, "revolver") or string.find(name, "sniper") or string.find(name, "axe") or string.find(name, "machete") or string.find(name, "crowbar") or string.find(name, "pipe") or string.find(name, "hammer") or string.find(name, "club") or string.find(name, "grenade") then return "Weapon"
-    elseif string.find(name, "rocket") or string.find(name, "missile") or string.find(name, "flare pack") or string.find(name, "ammo") or string.find(name, "bullet") or string.find(name, "mag") or string.find(name, "round") or string.find(name, "shell") or string.find(name, "box") or string.find(name, "pack") then return "Ammo"
-    elseif string.find(name, "med") or string.find(name, "bandage") or string.find(name, "heal") or string.find(name, "kit") or string.find(name, "pill") or string.find(name, "first") or string.find(name, "syringe") or string.find(name, "health") or string.find(name, "pain") or string.find(name, "tonic") or string.find(name, "gauze") then return "Medical"
-    elseif string.find(name, "food") or string.find(name, "water") or string.find(name, "can") or string.find(name, "drink") or string.find(name, "apple") or string.find(name, "bottle") or string.find(name, "mre") or string.find(name, "soup") or string.find(name, "cola") then return "Food"
-    else return "Other" end
+    if string.find(name, "battery") or string.find(name, "cell") or string.find(name, "power") then
+        return "Battery"
+    elseif string.find(name, "flare gun") or string.find(name, "gun") or string.find(name, "rifle") or string.find(name, "pistol") or string.find(name, "shotgun") or string.find(name, "smg") or string.find(name, "knife") or string.find(name, "sword") or string.find(name, "bat") or string.find(name, "melee") or string.find(name, "weapon") or string.find(name, "revolver") or string.find(name, "sniper") or string.find(name, "axe") or string.find(name, "machete") or string.find(name, "crowbar") or string.find(name, "pipe") or string.find(name, "hammer") or string.find(name, "club") or string.find(name, "grenade") then 
+        return "Weapon"
+    elseif string.find(name, "flare pack") or string.find(name, "ammo") or string.find(name, "bullet") or string.find(name, "mag") or string.find(name, "round") or string.find(name, "shell") or string.find(name, "box") or string.find(name, "pack") then 
+        return "Ammo"
+    elseif string.find(name, "med") or string.find(name, "bandage") or string.find(name, "heal") or string.find(name, "kit") or string.find(name, "pill") or string.find(name, "first") or string.find(name, "syringe") or string.find(name, "health") or string.find(name, "pain") or string.find(name, "tonic") or string.find(name, "gauze") then 
+        return "Medical"
+    elseif string.find(name, "food") or string.find(name, "water") or string.find(name, "can") or string.find(name, "drink") or string.find(name, "apple") or string.find(name, "bottle") or string.find(name, "mre") or string.find(name, "soup") or string.find(name, "cola") then 
+        return "Food"
+    else 
+        return "Other" 
+    end
 end
 
 local function isValidItemName(name)
     local low = string.lower(name)
-    if string.find(low, "door") or string.find(low, "opener") or string.find(low, "gate") or string.find(low, "lever") or string.find(low, "switch") or string.find(low, "button") or string.find(low, "drawer") or string.find(low, "chest") or string.find(low, "desk") or string.find(low, "house") or string.find(low, "home") or string.find(low, "building") or string.find(low, "cabinet") or string.find(low, "cabin") or string.find(low, "shack") or string.find(low, "freezer") or string.find(low, "gasstation") then return false end
+    if string.find(low, "door") or string.find(low, "opener") or string.find(low, "gate") or string.find(low, "lever") or string.find(low, "switch") or string.find(low, "button") or string.find(low, "drawer") or string.find(low, "chest") or string.find(low, "desk") or string.find(low, "house") or string.find(low, "home") or string.find(low, "building") or string.find(low, "cabinet") or string.find(low, "cabin") or string.find(low, "shack") or string.find(low, "freezer") or string.find(low, "gasstation") then
+        return false
+    end
     return true
 end
 
@@ -287,147 +307,57 @@ end)
 hookFallDamage()
 
 Workspace.DescendantAdded:Connect(function(obj)
-    if obj:IsA("ProximityPrompt") and Config.InstantInteract then obj.HoldDuration = 0 end
-end)
-
--- ==========================================
--- INFINITE STATS DEEP-SCAN ENGINE (Stamina, Water)
--- ==========================================
-local foundWaterStats = {}
-local foundStaminaStats = {}
-
-task.spawn(function()
-    while task.wait(5) do
-        foundWaterStats = {}
-        foundStaminaStats = {}
-        
-        local searchTargets = {LocalPlayer, LocalPlayer.Character}
-        for _, target in ipairs(searchTargets) do
-            if target then
-                for _, obj in ipairs(target:GetDescendants()) do
-                    if obj:IsA("ValueBase") then
-                        local n = string.lower(obj.Name)
-                        if string.find(n, "water") or string.find(n, "thirst") or string.find(n, "hydration") then
-                            table.insert(foundWaterStats, obj)
-                        elseif string.find(n, "stamina") or string.find(n, "energy") then
-                            table.insert(foundStaminaStats, obj)
-                        end
-                    end
-                end
-            end
-        end
+    if obj:IsA("ProximityPrompt") and Config.InstantInteract then
+        obj.HoldDuration = 0
     end
 end)
 
-RunService.Heartbeat:Connect(function()
-    if Config.InfWater then
-        for _, stat in ipairs(foundWaterStats) do
-            pcall(function() 
-                if type(stat.Value) == "number" and stat.Value < 100 then
-                    stat.Value = 100
-                end
-            end)
-        end
-        pcall(function()
-            local char = LocalPlayer.Character
-            if char then
-                if char:GetAttribute("Water") then char:SetAttribute("Water", 100) end
-                if char:GetAttribute("Thirst") then char:SetAttribute("Thirst", 100) end
-            end
-            if LocalPlayer:GetAttribute("Water") then LocalPlayer:SetAttribute("Water", 100) end
-            if LocalPlayer:GetAttribute("Thirst") then LocalPlayer:SetAttribute("Thirst", 100) end
-        end)
-    end
-
-    if Config.InfStamina then
-        for _, stat in ipairs(foundStaminaStats) do
-            pcall(function() 
-                if type(stat.Value) == "number" and stat.Value < 100 then
-                    stat.Value = 100
-                end
-            end)
-        end
-        pcall(function()
-            local char = LocalPlayer.Character
-            if char and char:GetAttribute("Stamina") then char:SetAttribute("Stamina", 100) end
-            if LocalPlayer:GetAttribute("Stamina") then LocalPlayer:SetAttribute("Stamina", 100) end
-        end)
-    end
-end)
-
--- Safe Metatable Interception with pcall to stop crashes
-pcall(function()
-    local mt = getrawmetatable(game)
-    if setreadonly then setreadonly(mt, false) end
-    local oldNewIndex = mt.__newindex
-
-    mt.__newindex = newcclosure(function(t, k, v)
-        if not checkcaller() then
-            if k == "Value" and type(v) == "number" and v < 100 then
-                local success, n = pcall(function() return string.lower(t.Name) end)
-                if success and n then
-                    if Config.InfWater and (string.find(n, "water") or string.find(n, "thirst") or string.find(n, "hydration")) then
-                        return oldNewIndex(t, k, 100)
-                    elseif Config.InfStamina and (string.find(n, "stamina") or string.find(n, "energy")) then
-                        return oldNewIndex(t, k, 100)
-                    end
-                end
-            end
-        end
-        return oldNewIndex(t, k, v)
-    end)
-    if setreadonly then setreadonly(mt, true) end
-end)
-
--- ==========================================
--- MAIN RENDER STEP LOOP (Optimized for Zero Lag)
--- ==========================================
 RunService.RenderStepped:Connect(function(dt)
     scanTimer = scanTimer + dt
-    if scanTimer >= 2.5 then
+    if scanTimer >= 1.0 then
         scanTimer = 0
         cachedEntities = {}
         cachedItems = {}
         
-        pcall(function()
-            for _, obj in ipairs(Workspace:GetDescendants()) do
-                if obj:IsA("Model") then
-                    local hum = obj:FindFirstChildOfClass("Humanoid")
-                    if hum then
-                        local p = Players:GetPlayerFromCharacter(obj)
-                        if p and p ~= LocalPlayer then
-                            table.insert(cachedEntities, {type = "Player", model = obj, name = p.Name})
-                        elseif not p then
-                            local nLow = string.lower(obj.Name)
-                            if nLow ~= "camera" and not string.find(nLow, "item") then
-                                table.insert(cachedEntities, {type = "Monster", model = obj, name = obj.Name})
-                            end
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("Model") then
+                local hum = obj:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    local p = Players:GetPlayerFromCharacter(obj)
+                    if p and p ~= LocalPlayer then
+                        table.insert(cachedEntities, {type = "Player", model = obj, name = p.Name})
+                    elseif not p then
+                        local nLow = string.lower(obj.Name)
+                        if nLow ~= "camera" and not string.find(nLow, "item") then
+                            table.insert(cachedEntities, {type = "Monster", model = obj, name = obj.Name})
                         end
                     end
                 end
             end
+        end
 
-            for _, obj in ipairs(Workspace:GetDescendants()) do
-                if obj:IsA("ProximityPrompt") then
-                    if Config.InstantInteract then obj.HoldDuration = 0 end
-                    
-                    local itemParent = obj.Parent
-                    while itemParent and itemParent ~= Workspace do
-                        if itemParent:IsA("Model") then
-                            local realName = itemParent.Name
-                            if isValidItemName(realName) then
-                                local primary = itemParent.PrimaryPart or itemParent:FindFirstChildWhichIsA("BasePart")
-                                if primary and realName ~= "Workspace" then
-                                    table.insert(cachedItems, {part = primary, name = realName, cat = getItemCategory(realName)})
-                                    break
-                                end
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                if Config.InstantInteract then
+                    obj.HoldDuration = 0
+                end
+                
+                local itemParent = obj.Parent
+                while itemParent and itemParent ~= Workspace do
+                    if itemParent:IsA("Model") then
+                        local realName = itemParent.Name
+                        if isValidItemName(realName) then
+                            local primary = itemParent.PrimaryPart or itemParent:FindFirstChildWhichIsA("BasePart")
+                            if primary and realName ~= "Workspace" then
+                                table.insert(cachedItems, {part = primary, name = realName, cat = getItemCategory(realName)})
+                                break
                             end
                         end
-                        itemParent = itemParent.Parent
                     end
+                    itemParent = itemParent.Parent
                 end
             end
-        end)
+        end
     end
 
     local closestTarget = nil
@@ -469,29 +399,72 @@ RunService.RenderStepped:Connect(function(dt)
     end
 
     for _, entity in ipairs(cachedEntities) do
-        pcall(function()
-            local model = entity.model
-            local hrp = model and model:FindFirstChild("HumanoidRootPart") or (model and model:FindFirstChildWhichIsA("BasePart"))
-            local hum = model and model:FindFirstChildOfClass("Humanoid")
-            
-            if hrp and hum and hum.Health > 0 then
-                local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-                if onScreen then
-                    local dist = (Camera.CFrame.Position - hrp.Position).Magnitude
-                    local showPlr = (entity.type == "Player" and Config.PlayerESP)
-                    local showMon = (entity.type == "Monster" and Config.MonsterESP)
+        local model = entity.model
+        local hrp = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChildWhichIsA("BasePart")
+        local hum = model:FindFirstChildOfClass("Humanoid")
+        
+        if hrp and hum and hum.Health > 0 then
+            local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+            if onScreen then
+                local dist = (Camera.CFrame.Position - hrp.Position).Magnitude
+                local showPlr = (entity.type == "Player" and Config.PlayerESP)
+                local showMon = (entity.type == "Monster" and Config.MonsterESP)
 
-                    if showPlr or showMon then
-                        local txt = getDrawing(model)
-                        if txt then
-                            activeDrawings[model] = true
-                            txt.Visible = true
-                            txt.Position = Vector2.new(pos.X, pos.Y)
-                            
-                            if entity.type == "Player" then
-                                txt.Text = string.format("[Player] %s [%dm]", entity.name, math.floor(dist))
-                                txt.Color = Color3.fromRGB(80, 200, 255)
-                            else
-                                txt.Text = string.format("[Monster] %s [%dm]", entity.name, math.floor(dist))
-                                txt.Color = Color3.fromRGB(255, 50, 50)
-      
+                if showPlr or showMon then
+                    local txt = getDrawing(model)
+                    if txt then
+                        activeDrawings[model] = true
+                        txt.Visible = true
+                        txt.Position = Vector2.new(pos.X, pos.Y)
+                        
+                        if entity.type == "Player" then
+                            txt.Text = string.format("[Player] %s [%dm]", entity.name, math.floor(dist))
+                            txt.Color = Color3.fromRGB(80, 200, 255)
+                        else
+                            txt.Text = string.format("[Monster] %s [%dm]", entity.name, math.floor(dist))
+                            txt.Color = Color3.fromRGB(255, 50, 50)
+                        end
+                    end
+
+                    if Config.Aimbot and entity.type == "Monster" then
+                        local centerScreen = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+                        local d2Center = (Vector2.new(pos.X, pos.Y) - centerScreen).Magnitude
+                        if d2Center < shortestDist then
+                            shortestDist = d2Center
+                            closestTarget = hrp
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if Config.ItemESP then
+        for _, item in ipairs(cachedItems) do
+            if Config.Filters[item.cat] then
+                local pos, onScreen = Camera:WorldToViewportPoint(item.part.Position)
+                if onScreen then
+                    local dist = (Camera.CFrame.Position - item.part.Position).Magnitude
+                    local txt = getDrawing(item.part)
+                    if txt then
+                        activeDrawings[item.part] = true
+                        txt.Visible = true
+                        txt.Position = Vector2.new(pos.X, pos.Y)
+                        txt.Text = string.format("[%s] %s [%dm]", item.cat, item.name, math.floor(dist))
+                        txt.Color = Color3.fromRGB(255, 220, 50)
+                    end
+                end
+            end
+        end
+    end
+
+    for target, txt in pairs(ESPCache) do
+        if not activeDrawings[target] then
+            txt.Visible = false
+        end
+    end
+
+    if Config.Aimbot and closestTarget then
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestTarget.Position)
+    end
+end)
