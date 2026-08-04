@@ -43,6 +43,8 @@ local Config = {
     WalkSpeed = 50,
     JumpHack = false,
     JumpPower = 150,
+    InfStamina = false,
+    InfWater = false,
     Filters = { Weapon = true, Ammo = true, Medical = true, Food = true, Battery = true, Other = true }
 }
 
@@ -136,7 +138,7 @@ ScrollContainer.Parent = MainFrame
 ScrollContainer.BackgroundTransparency = 1
 ScrollContainer.Position = UDim2.new(0, 6, 0, 36)
 ScrollContainer.Size = UDim2.new(1, -12, 1, -42)
-ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 480)
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 560)
 ScrollContainer.ScrollBarThickness = 3
 ScrollContainer.ScrollBarImageColor3 = Color3.fromRGB(0, 162, 255)
 
@@ -210,6 +212,10 @@ createHeader("--- VISUALS ---")
 createToggle("Player ESP", "PlayerESP", false)
 createToggle("Monster ESP", "MonsterESP", false)
 createToggle("Items esp", "ItemESP", false)
+
+createHeader("--- SURVIVAL ---")
+createToggle("Infinite Stamina", "InfStamina", false)
+createToggle("Infinite Water", "InfWater", false)
 
 createHeader("--- COMBAT & UTILITY ---")
 createToggle("Aimbot [E]", "Aimbot", false)
@@ -286,6 +292,31 @@ local scanTimer = 0
 local cachedEntities = {}
 local cachedItems = {}
 local isJumpingOrFalling = false
+local foundWaterStats = {}
+local foundStaminaStats = {}
+
+task.spawn(function()
+    while task.wait(5) do
+        foundWaterStats = {}
+        foundStaminaStats = {}
+        
+        local searchTargets = {LocalPlayer, LocalPlayer.Character}
+        for _, target in ipairs(searchTargets) do
+            if target then
+                for _, obj in ipairs(target:GetDescendants()) do
+                    if obj:IsA("ValueBase") then
+                        local n = string.lower(obj.Name)
+                        if string.find(n, "water") or string.find(n, "thirst") or string.find(n, "hydration") then
+                            table.insert(foundWaterStats, obj)
+                        elseif string.find(n, "stamina") or string.find(n, "energy") then
+                            table.insert(foundStaminaStats, obj)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
 
 local function hookFallDamage()
     local char = LocalPlayer.Character
@@ -309,6 +340,42 @@ hookFallDamage()
 Workspace.DescendantAdded:Connect(function(obj)
     if obj:IsA("ProximityPrompt") and Config.InstantInteract then
         obj.HoldDuration = 0
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    if Config.InfWater then
+        for _, stat in ipairs(foundWaterStats) do
+            pcall(function() 
+                if type(stat.Value) == "number" and stat.Value < 100 then
+                    stat.Value = 100
+                end
+            end)
+        end
+        pcall(function()
+            local char = LocalPlayer.Character
+            if char then
+                if char:GetAttribute("Water") then char:SetAttribute("Water", 100) end
+                if char:GetAttribute("Thirst") then char:SetAttribute("Thirst", 100) end
+            end
+            if LocalPlayer:GetAttribute("Water") then LocalPlayer:SetAttribute("Water", 100) end
+            if LocalPlayer:GetAttribute("Thirst") then LocalPlayer:SetAttribute("Thirst", 100) end
+        end)
+    end
+
+    if Config.InfStamina then
+        for _, stat in ipairs(foundStaminaStats) do
+            pcall(function() 
+                if type(stat.Value) == "number" and stat.Value < 100 then
+                    stat.Value = 100
+                end
+            end)
+        end
+        pcall(function()
+            local char = LocalPlayer.Character
+            if char and char:GetAttribute("Stamina") then char:SetAttribute("Stamina", 100) end
+            if LocalPlayer:GetAttribute("Stamina") then LocalPlayer:SetAttribute("Stamina", 100) end
+        end)
     end
 end)
 
@@ -431,40 +498,4 @@ RunService.RenderStepped:Connect(function(dt)
                         local d2Center = (Vector2.new(pos.X, pos.Y) - centerScreen).Magnitude
                         if d2Center < shortestDist then
                             shortestDist = d2Center
-                            closestTarget = hrp
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    if Config.ItemESP then
-        for _, item in ipairs(cachedItems) do
-            if Config.Filters[item.cat] then
-                local pos, onScreen = Camera:WorldToViewportPoint(item.part.Position)
-                if onScreen then
-                    local dist = (Camera.CFrame.Position - item.part.Position).Magnitude
-                    local txt = getDrawing(item.part)
-                    if txt then
-                        activeDrawings[item.part] = true
-                        txt.Visible = true
-                        txt.Position = Vector2.new(pos.X, pos.Y)
-                        txt.Text = string.format("[%s] %s [%dm]", item.cat, item.name, math.floor(dist))
-                        txt.Color = Color3.fromRGB(255, 220, 50)
-                    end
-                end
-            end
-        end
-    end
-
-    for target, txt in pairs(ESPCache) do
-        if not activeDrawings[target] then
-            txt.Visible = false
-        end
-    end
-
-    if Config.Aimbot and closestTarget then
-        Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestTarget.Position)
-    end
-end)
+                            closestTarget = hr
